@@ -40,7 +40,7 @@ uv run smoke_test.py \
 '''
 
 [tasks.start]
-description = "Run the live demo (keys: l/v/p/s toggle features, q quits)"
+description = "Run the live demo (keys: l/p/s toggle features, q quits)"
 depends = ["check"]
 usage = '''
 flag "--whisper-model <model>" default="small" help="Whisper model (e.g. base for faster, less accurate)"
