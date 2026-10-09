@@ -293,6 +293,11 @@ def render(text: str, language: str | None, vulgar: list[bool],
     return BOLD + line + RESET
 
 
+KEY = (f"key: <english>/<spanish>/<german> detected language · "
+       f"{VULGAR_EMOJI} offensive word · {PII_BLOCK} personal info · "
+       f"{SHADE_BLOCK} utterance disparaging a person")
+
+
 def status(latency: float, tokens: int, whisper_s: float) -> str:
     cost = tokens / 1_000_000 * JEV_PRICE_PER_MTOK
     line = (f"{DIM}  jev {latency*1000:.0f}ms · {tokens} tok · "
@@ -417,7 +422,8 @@ def main() -> int:
                                max_utterance_s=12)
     out_path = args.out or time.strftime("%Y%m%d-%H%M%S") + ".out"
     out_file = open(out_path, "a", encoding="utf-8", buffering=1)
-    print(f"{DIM}appending to {out_path}{RESET}\n")
+    out_file.write(KEY + "\n\n")
+    print(f"{DIM}{KEY}\nappending to {out_path}{RESET}\n")
     live_rows = 0  # rows taken by the live line currently on screen
     requests = total_tokens = 0  # session totals, shown on exit
     try:
