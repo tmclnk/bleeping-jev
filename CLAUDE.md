@@ -59,7 +59,7 @@ Four stages, each a top-level section in the file:
 1. `UtteranceCapture` — `sounddevice` stream, 16 kHz mono, 30 ms blocks.
    An RMS energy gate (`--gate-db`) starts an utterance; `--silence-ms` of
    quiet or 12 s max ends it. Yields float32 numpy arrays.
-2. Whisper — whisper.cpp via `pywhispercpp` (`small`, Metal on Apple
+2. Whisper — whisper.cpp via `pywhispercpp` (`medium`, Metal on Apple
    Silicon; ~3x faster than the old `faster-whisper` CPU path). No `initial_prompt`.
 3. `judge_segment` — builds the request: `language` Choice (english /
    spanish / german / other) plus a `pii_{i}` Noul for every

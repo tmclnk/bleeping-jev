@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import _thread
 import argparse
+import collections
 import json
 import queue
 import re
@@ -44,6 +45,7 @@ import numpy as np
 SAMPLE_RATE = 16_000
 BLOCK_MS = 30
 BLOCK_SAMPLES = SAMPLE_RATE * BLOCK_MS // 1000
+PREROLL_MS = 300  # audio kept from before the gate opens, so onsets aren't clipped
 
 JEV_PRICE_PER_MTOK = 0.042  # USD, input tokens only (docs.typesafe.ai/models)
 
@@ -91,6 +93,9 @@ class UtteranceCapture:
                             blocksize=BLOCK_SAMPLES, dtype="float32",
                             device=self.device, callback=self._callback):
             current: list[np.ndarray] = []
+            preroll: collections.deque[np.ndarray] = collections.deque(
+                maxlen=PREROLL_MS // BLOCK_MS)
+            lead = 0  # preroll blocks at the head of `current`
             quiet_run = 0
             last_partial = 0
             while True:
@@ -100,6 +105,10 @@ class UtteranceCapture:
                 speaking = loud_db > self.gate_db
 
                 if speaking:
+                    if not current:
+                        current = list(preroll)
+                        lead = len(current)
+                        preroll.clear()
                     current.append(block)
                     quiet_run = 0
                 elif current:
@@ -110,9 +119,11 @@ class UtteranceCapture:
                         audio = np.concatenate(current)
                         current, quiet_run, last_partial = [], 0, 0
                         # ignore blips shorter than ~300ms of speech
-                        if len(audio) > SAMPLE_RATE * 0.3:
+                        if len(audio) > SAMPLE_RATE * 0.3 + lead * BLOCK_SAMPLES:
                             yield audio, True
                         continue
+                elif not current:
+                    preroll.append(block)
 
                 if (partial_blocks and self.blocks.empty()
                         and len(current) - last_partial >= partial_blocks
@@ -315,8 +326,8 @@ def main() -> int:
     ap.add_argument("--no-shade", action="store_true",
                     help="don't elide utterances that trash-talk a person")
     ap.add_argument("--jev-model", default="jev-latest")
-    ap.add_argument("--whisper-model", default="small",
-                    help="whisper.cpp model (small handles de/es well)")
+    ap.add_argument("--whisper-model", default="medium",
+                    help="whisper.cpp model (medium handles de/es well)")
     ap.add_argument("--device", type=int, default=None,
                     help="input device index (see --list-devices)")
     ap.add_argument("--list-devices", action="store_true")

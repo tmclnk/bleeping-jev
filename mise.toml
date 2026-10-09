@@ -11,7 +11,7 @@ echo "✓ TYPESAFE_API_KEY set"
 [tasks.setup]
 description = "Resolve dependencies and pre-download the Whisper model"
 depends = ["check"]
-usage = 'flag "--whisper-model <model>" default="small" help="Whisper model to cache"'
+usage = 'flag "--whisper-model <model>" default="medium" help="Whisper model to cache"'
 run = '''
 echo "Resolving Python dependencies…"
 uv run bleep.py --list-devices >/dev/null
@@ -43,7 +43,7 @@ uv run smoke_test.py \
 description = "Run the live demo (keys: l/p/s toggle features, q quits)"
 depends = ["check"]
 usage = '''
-flag "--whisper-model <model>" default="small" help="Whisper model (e.g. base for faster, less accurate)"
+flag "--whisper-model <model>" default="medium" help="Whisper model (e.g. base for faster, less accurate)"
 flag "--device <index>" help="Audio input device index (see: mise run devices)"
 flag "--debug" help="Print each Jev request and response"
 flag "--show-request" help="Print only outgoing Jev requests"

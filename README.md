@@ -58,7 +58,7 @@ Flags for `bleep.py` (or `mise run start --whisper-model base --device 4`; extra
 | Flag | Default | Purpose |
 | --- | --- | --- |
 | `--no-language` / `--no-pii` / `--no-shade` | all on | start with a feature disabled |
-| `--whisper-model` | `small` | whisper.cpp model size; `base` is faster, `small` handles de/es better |
+| `--whisper-model` | `medium` | whisper.cpp model size; `small`/`base` are faster, `medium` is more accurate |
 | `--device N` | system default | input device index; `--list-devices` shows them |
 | `--gate-db` | `-40` | energy gate in dBFS; raise toward `-30` in a noisy room |
 | `--silence-ms` | `700` | pause length that ends an utterance |
@@ -81,12 +81,12 @@ update, roughly 5–8× the tokens per utterance, and the status line shows it:
 ```
 mic ──▶ energy gate ──▶ Whisper (local) ──▶ Jev (1 request) ──▶ render ──▶ stdout
         30ms blocks     whisper.cpp          ~20 questions       ▒ / ▓ / <lang>
-        pause = cut     small, Metal       in parallel
+        pause = cut     medium, Metal      in parallel
 ```
 
 1. **Capture.** `sounddevice` streams 16 kHz mono audio in 30 ms blocks. A
    simple RMS gate marks speech; ~700 ms of quiet ends the utterance.
-2. **Transcribe.** whisper.cpp (via `pywhispercpp`) runs the multilingual `small` model, on the GPU via Metal on Apple Silicon.
+2. **Transcribe.** whisper.cpp (via `pywhispercpp`) runs the multilingual `medium` model, on the GPU via Metal on Apple Silicon.
 3. **Judge.** The utterance becomes one Jev `system_one` request. State is
    `{"segment": text, "words": [...]}` and the questions are:
    - `language` — a **Choice** among `english`, `spanish`, `german`, `other`.
