@@ -20,7 +20,7 @@ ap.add_argument("--debug", action="store_true",
 args = ap.parse_args()
 
 client = TypeSafeClient()
-features = {"language": True, "pii": True, "shade": True}
+features = {"language": True, "vulgarity": True, "pii": True, "shade": True}
 
 cases = [
     "I have a fucking great feeling about this demo",
@@ -28,6 +28,7 @@ cases = [
     "Esta mierda funciona muy bien, no puedo creerlo",
     "Call me at 555-867-5309 or email tom@example.com",
     "The weather in Boston is lovely today",
+    "Son of a bitch, I stubbed my toe on the table again",
     "Honestly Dave from accounting is completely useless at his job",
     "My manager has no clue what she's doing, it's embarrassing",
     "My brother-in-law is a total idiot and everyone in the family knows it",
@@ -36,10 +37,10 @@ cases = [
 ]
 
 for text in cases:
-    language, pii, shade, latency, tokens = bleep.judge_segment(
+    language, vulgar, pii, shade, latency, tokens = bleep.judge_segment(
         client, text, features, "jev-latest",
         show_request=args.debug or args.show_request,
         show_response=args.debug or args.show_response)
-    print(bleep.render(text, language, pii, shade))
+    print(bleep.render(text, language, vulgar, pii, shade))
     print(bleep.status(latency, tokens, 0.0))
     print()

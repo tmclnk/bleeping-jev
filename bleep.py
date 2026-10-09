@@ -14,6 +14,8 @@ Listens to the microphone, transcribes speech locally with Whisper, then asks
 Jev one batched System One request per utterance:
 
   * language   — Choice: which language is the segment in?
+  * vulgarity  — one Noul per word: is this word part of an offensive
+                 word or phrase? Each flagged run becomes one 🙊.
   * pii        — one Noul per word: does this word reveal PII here?
   * shade      — one Noul for the whole utterance: is the speaker talking
                  shit about a coworker? If so the entire line is elided.
@@ -22,8 +24,9 @@ Flagged words are redacted with block characters before the text ever hits
 the screen. Each line prints with Jev's wall-clock latency and token cost,
 because that's the point of the demo.
 
-Keys while running:  l = toggle language tags   p = toggle PII redaction
-                     s = toggle shade           q = quit
+Keys while running:  l = toggle language tags   v = toggle vulgarity filter
+                     p = toggle PII redaction   s = toggle shade
+                     ctrl-d = quit
 """
 
 from __future__ import annotations
@@ -57,6 +60,7 @@ MAGENTA = "\033[35m"
 CYAN = "\033[36m"
 RESET = "\033[0m"
 
+VULGAR_EMOJI = "🙊"
 PII_BLOCK = "▒"
 SHADE_BLOCK = "▓"
 SHADE_THRESHOLD = 0.5
@@ -157,9 +161,9 @@ def dump_http(label: str, body: bytes | str, head: str) -> None:
 
 def judge_segment(client, text: str, features: dict[str, bool], model: str,
                   show_request: bool = False, show_response: bool = False):
-    """One System One request: language Choice + per-word PII Nouls
-    + one segment-level coworker-shade Noul.
-    Returns (language, pii_flags, shade, latency_s, tokens)."""
+    """One System One request: language Choice + per-word vulgarity/PII
+    Nouls + one segment-level coworker-shade Noul.
+    Returns (language, vulgar_flags, pii_flags, shade, latency_s, tokens)."""
     from typesafe_sdk import Choice, Noul, NoulCriteria
 
     words = WORD_RE.findall(text)
@@ -176,6 +180,19 @@ def judge_segment(client, text: str, features: dict[str, bool], model: str,
                 "other": "Any language other than English, Spanish, or German",
             },
         )
+    if features["vulgarity"]:
+        for i in range(len(words)):
+            questions[f"vulgar_{i}"] = Noul(
+                instructions=(
+                    f"Is `words[{i}]` part of a word or phrase in `segment` "
+                    "that would commonly be considered offensive — "
+                    "profanity, a curse, a slur, or an obscene expression? "
+                    "If the offensive expression spans several words, every "
+                    "word in it counts, even ordinary ones like 'of' and 'a' "
+                    "in 'son of a bitch' or 'piece of shit'. Judge it in "
+                    "whatever language it is spoken."
+                ),
+            )
     if features["pii"]:
         for i in range(len(words)):
             questions[f"pii_{i}"] = Noul(
@@ -204,7 +221,7 @@ def judge_segment(client, text: str, features: dict[str, bool], model: str,
         )
 
     if not questions:
-        return None, [False] * len(words), False, 0.0, 0
+        return None, [False] * len(words), [False] * len(words), False, 0.0, 0
 
     t0 = time.perf_counter()
     result = client.system_one(state, questions, model=model)
@@ -222,10 +239,12 @@ def judge_segment(client, text: str, features: dict[str, bool], model: str,
     if features["language"]:
         language = result.choices["language"].choice
 
-    pii = [False] * len(words)
-    if features["pii"]:
-        pii = [result.nouls[f"pii_{i}"].noul >= 0.5
-               for i in range(len(words))]
+    def flags(prefix: str) -> list[bool]:
+        return [result.nouls[f"{prefix}_{i}"].noul >= 0.5
+                for i in range(len(words))]
+
+    vulgar = flags("vulgar") if features["vulgarity"] else [False] * len(words)
+    pii = flags("pii") if features["pii"] else [False] * len(words)
     shade = (features["shade"]
              and result.nouls["shade"].noul >= SHADE_THRESHOLD)
 
@@ -239,7 +258,7 @@ def judge_segment(client, text: str, features: dict[str, bool], model: str,
         tokens = (len(state) + sum(len(str(q.instructions))
                                    for q in questions.values())) // 4
 
-    return language, pii, shade, latency, tokens
+    return language, vulgar, pii, shade, latency, tokens
 
 
 # ------------------------------------------------------------- rendering ----
@@ -248,13 +267,17 @@ def redact(word: str, block: str) -> str:
     return block * len(word)
 
 
-def render(text: str, language: str | None, pii: list[bool],
-           shade: bool = False) -> str:
+def render(text: str, language: str | None, vulgar: list[bool],
+           pii: list[bool], shade: bool = False) -> str:
     out: list[str] = []
     for i, m in enumerate(WORD_RE.finditer(text)):
         w = m.group()
         if shade:  # whole utterance elided: nothing survives, lengths do
             out.append(MAGENTA + redact(w, SHADE_BLOCK) + RESET)
+        elif vulgar[i]:
+            # one 🙊 per offensive run, so a phrase reads as a single bleep
+            if not (i and vulgar[i - 1]):
+                out.append(VULGAR_EMOJI)
         elif pii[i]:
             out.append(YELLOW + redact(w, PII_BLOCK) + RESET)
         else:
@@ -302,7 +325,7 @@ def key_listener(features: dict[str, bool], stop: threading.Event):
         old = termios.tcgetattr(fd)
     except (termios.error, ValueError, OSError):
         return  # no tty (piped/background run): toggles unavailable
-    names = {"l": "language", "p": "pii", "s": "shade"}
+    names = {"l": "language", "v": "vulgarity", "p": "pii", "s": "shade"}
     try:
         tty.setcbreak(fd)
         while not stop.is_set():
@@ -322,6 +345,8 @@ def key_listener(features: dict[str, bool], stop: threading.Event):
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--no-language", action="store_true")
+    ap.add_argument("--no-vulgarity", action="store_true",
+                    help="don't replace offensive words with 🙊")
     ap.add_argument("--no-pii", action="store_true")
     ap.add_argument("--no-shade", action="store_true",
                     help="don't elide utterances that trash-talk a person")
@@ -355,6 +380,7 @@ def main() -> int:
 
     features = {
         "language": not args.no_language,
+        "vulgarity": not args.no_vulgarity,
         "pii": not args.no_pii,
         "shade": not args.no_shade,
     }
@@ -374,7 +400,7 @@ def main() -> int:
 
     on = [k for k, v in features.items() if v]
     print(f"{BOLD}bleep{RESET} {DIM}listening · features: {', '.join(on)}"
-          f" · keys: l/p/s toggle, ctrl-c/ctrl-d quit{RESET}\n")
+          f" · keys: l/v/p/s toggle, ctrl-c/ctrl-d quit{RESET}\n")
 
     show_request = args.debug or args.show_request
     show_response = args.debug or args.show_response
@@ -403,7 +429,7 @@ def main() -> int:
 
             snapshot = dict(features)  # freeze toggles for this utterance
             try:
-                language, pii, shade, latency, tokens = judge_segment(
+                language, vulgar, pii, shade, latency, tokens = judge_segment(
                     client, text, snapshot, args.jev_model,
                     show_request=show_request, show_response=show_response)
             except Exception as e:
@@ -415,7 +441,7 @@ def main() -> int:
 
             requests += 1
             total_tokens += tokens
-            line = render(text, language, pii, shade)
+            line = render(text, language, vulgar, pii, shade)
             if redraw:
                 clear_rows(live_rows)
             if final:

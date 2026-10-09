@@ -6,7 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A conference demo: live microphone speech → local Whisper transcription → one
 [Jev](https://typesafe.ai) request per utterance → stdout with `<english>`/
-`<spanish>`/`<german>` tags, PII as yellow `▒`
+`<spanish>`/`<german>` tags, offensive words/phrases as 🙊 (one per
+flagged run), PII as yellow `▒`
 blocks, whole utterances that trash-talk a person as magenta `▓` blocks,
 and a latency/cost status line. The point of the demo is Jev's speed
 and cost, so keep the status line and the one-request-per-utterance shape.
@@ -62,13 +63,14 @@ Four stages, each a top-level section in the file:
 2. Whisper — whisper.cpp via `pywhispercpp` (`medium`, Metal on Apple
    Silicon; ~3x faster than the old `faster-whisper` CPU path). No `initial_prompt`.
 3. `judge_segment` — builds the request: `language` Choice (english /
-   spanish / german / other) plus a `pii_{i}` Noul for every
+   spanish / german / other) plus `vulgar_{i}` and `pii_{i}` Nouls for every
    whitespace-split word, plus one segment-level `shade` Noul (is the speaker
    disparaging any person?) with `NoulCriteria` true/false descriptions. Only
    enabled features add questions. Returns
-   `(language, pii_flags, shade, latency_s, tokens)`.
+   `(language, vulgar_flags, pii_flags, shade, latency_s, tokens)`.
 4. `render`/`status` — ANSI output. Words are redacted whole-token, same
-   length as the original (that's the joke). `shade` elides every word in the
+   length as the original (that's the joke), except vulgarity: each run of
+   consecutive flagged words becomes one 🙊, so phrases collapse. `shade` elides every word in the
    utterance the same way, and takes precedence over per-word flags.
 
 `--stream`: `utterances(partial_ms)` also yields `(audio_so_far, False)`
@@ -82,7 +84,7 @@ one-request-per-utterance; batch mode is still the default. With
 instead of redrawing.
 
 `features` is a dict mutated live by `key_listener` (raw-mode stdin thread:
-`l`/`p`/`s`; Ctrl-D quits); the main loop snapshots it per utterance. The listener
+`l`/`v`/`p`/`s`; Ctrl-D quits); the main loop snapshots it per utterance. The listener
 silently exits when stdin isn't a TTY so the script runs headless.
 
 `smoke_test.py` imports `bleep` and calls `judge_segment` + `render`
