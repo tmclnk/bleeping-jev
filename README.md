@@ -11,10 +11,10 @@ where you're talking shit about a coworker elided entirely — judged by Jev in
 roughly 150 milliseconds for about five thousandths of a cent.
 
 ```
-<english>I have a ███████ great feeling about this demo</english>
+<english>I have a @#$%&!† great feeling about this demo</english>
   jev 212ms · 1248 tok · $0.000052 · whisper 1.9s
 
-<german>Das ist doch totale ████████ aber es funktioniert</german>
+<german>Das ist doch totale ☠§%&*!?¤ aber es funktioniert</german>
   jev 107ms · 1160 tok · $0.000049 · whisper 2.1s
 
 <english>Call me at ▒▒▒▒▒▒▒▒▒▒▒▒ or email ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒</english>
@@ -24,7 +24,7 @@ roughly 150 milliseconds for about five thousandths of a cent.
   jev 118ms · 1495 tok · $0.000063 · whisper 2.0s
 ```
 
-Red `████` is a bleeped vulgarity; yellow `▒▒▒▒` is redacted PII; a whole line
+Red `@#$%&!` is a vulgarity replaced with random cartoon-swear glyphs; yellow `▒▒▒▒` is redacted PII; a whole line
 of magenta `▓▓▓▓` means you were talking shit about a coworker. The status
 line under each sentence is the pitch: Jev's wall-clock latency, the tokens
 sent, and what they cost.
@@ -69,7 +69,7 @@ Flags for `bleep.py` (or `make run WHISPER_MODEL=base DEVICE=4`):
 
 ```
 mic ──▶ energy gate ──▶ Whisper (local) ──▶ Jev (1 request) ──▶ render ──▶ stdout
-        30ms blocks     faster-whisper      ~36 questions       █ / ▒ / ▓ / <lang>
+        30ms blocks     faster-whisper      ~36 questions       glyphs / ▒ / ▓ / <lang>
         pause = cut     small, int8         in parallel
 ```
 

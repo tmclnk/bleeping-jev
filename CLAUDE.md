@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A conference demo: live microphone speech → local Whisper transcription → one
 [Jev](https://typesafe.ai) request per utterance → stdout with `<english>`/
-`<spanish>`/`<german>` tags, vulgarities as red `█` blocks, PII as yellow `▒`
+`<spanish>`/`<german>` tags, vulgarities as red random cartoon-swear glyphs (`VULGAR_GLYPHS`, same length), PII as yellow `▒`
 blocks, whole utterances that trash-talk a coworker as magenta `▓` blocks,
 and a latency/cost status line. The point of the demo is Jev's speed
 and cost, so keep the status line and the one-request-per-utterance shape.
@@ -20,6 +20,7 @@ make test       # smoke test: runs judge_segment on 9 canned sentences (hits the
 make run        # live demo; WHISPER_MODEL=base DEVICE=N are optional
 make devices    # list audio input devices
 uv run bleep.py --help
+uv run bleep.py --debug   # also --show-request / --show-response: dump Jev HTTP bodies
 ```
 
 There is no lint or unit-test suite; `smoke_test.py` is the whole test. It

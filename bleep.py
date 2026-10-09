@@ -33,6 +33,7 @@ from __future__ import annotations
 import argparse
 import json
 import queue
+import random
 import re
 import sys
 import termios
@@ -53,9 +54,10 @@ BOLD = "\033[1m"
 RED = "\033[31m"
 YELLOW = "\033[33m"
 MAGENTA = "\033[35m"
+CYAN = "\033[36m"
 RESET = "\033[0m"
 
-VULGAR_BLOCK = "█"
+VULGAR_GLYPHS = "@#$%&*!?¤§¶†‡∞≠☠☹✖⚡"
 PII_BLOCK = "▒"
 SHADE_BLOCK = "▓"
 SHADE_THRESHOLD = 0.5
@@ -114,7 +116,26 @@ class UtteranceCapture:
 WORD_RE = re.compile(r"\S+")
 
 
-def judge_segment(client, text: str, features: dict[str, bool], model: str):
+def dump_http(label: str, body: bytes | str, head: str) -> None:
+    """Print one HTTP body for --show-request/--show-response; objects one
+    entry per line so ~70-question requests stay readable."""
+    print(f"{CYAN}{label} {head}{RESET}")
+    try:
+        obj = json.loads(body)
+    except ValueError:
+        print(f"{CYAN}{body!r}{RESET}")
+        return
+    for k, v in obj.items():
+        if isinstance(v, dict):
+            print(f"{CYAN}  {k}:{RESET}")
+            for kk, vv in v.items():
+                print(f"{DIM}    {kk}: {json.dumps(vv, ensure_ascii=False)}{RESET}")
+        else:
+            print(f"{DIM}  {k}: {json.dumps(v, ensure_ascii=False)}{RESET}")
+
+
+def judge_segment(client, text: str, features: dict[str, bool], model: str,
+                  show_request: bool = False, show_response: bool = False):
     """One System One request: language Choice + per-word vulgarity/PII Nouls
     + one segment-level coworker-shade Noul.
     Returns (language, vulgar_flags, pii_flags, shade, latency_s, tokens)."""
@@ -178,6 +199,14 @@ def judge_segment(client, text: str, features: dict[str, bool], model: str):
     result = client.system_one(state, questions, model=model)
     latency = time.perf_counter() - t0
 
+    if show_request or show_response:
+        http = result.raw_http_response
+        if show_request:
+            req = http.request
+            dump_http("→ request", req.content, f"{req.method} {req.url}")
+        if show_response:
+            dump_http("← response", http.text, f"{http.status_code}")
+
     language = None
     if features["language"]:
         language = result.choices["language"].choice
@@ -212,6 +241,11 @@ def redact(word: str, block: str) -> str:
     return block * len(word)
 
 
+def scramble(word: str) -> str:
+    """Cartoon-swearing: random glyphs, same length as the word."""
+    return "".join(random.choice(VULGAR_GLYPHS) for _ in word)
+
+
 def render(text: str, language: str | None, vulgar: list[bool],
            pii: list[bool], shade: bool = False) -> str:
     out: list[str] = []
@@ -220,7 +254,7 @@ def render(text: str, language: str | None, vulgar: list[bool],
         if shade:  # whole utterance elided: nothing survives, lengths do
             out.append(MAGENTA + redact(w, SHADE_BLOCK) + RESET)
         elif vulgar[i]:
-            out.append(RED + redact(w, VULGAR_BLOCK) + RESET)
+            out.append(RED + scramble(w) + RESET)
         elif pii[i]:
             out.append(YELLOW + redact(w, PII_BLOCK) + RESET)
         else:
@@ -278,6 +312,12 @@ def main() -> int:
                     help="energy gate in dBFS; raise if room noise triggers it")
     ap.add_argument("--silence-ms", type=int, default=700,
                     help="pause length that ends an utterance")
+    ap.add_argument("--show-request", action="store_true",
+                    help="print each outgoing Jev request body")
+    ap.add_argument("--show-response", action="store_true",
+                    help="print each incoming Jev response body")
+    ap.add_argument("--debug", action="store_true",
+                    help="shorthand for --show-request --show-response")
     args = ap.parse_args()
 
     if args.list_devices:
@@ -326,7 +366,9 @@ def main() -> int:
         snapshot = dict(features)  # freeze toggles for this utterance
         try:
             language, vulgar, pii, shade, latency, tokens = judge_segment(
-                client, text, snapshot, args.jev_model)
+                client, text, snapshot, args.jev_model,
+                show_request=args.debug or args.show_request,
+                show_response=args.debug or args.show_response)
         except Exception as e:
             print(f"{RED}[jev error]{RESET} {e}\n{text}")
             continue

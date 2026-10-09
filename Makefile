@@ -4,15 +4,15 @@
 .DEFAULT_GOAL := help
 WHISPER_MODEL ?= small
 
-.PHONY: help check setup devices test run run-fast clean
+.PHONY: help check setup devices test run run-fast debug debug-request debug-response clean
 
 help: ## Show available targets
 	@echo "bleep — Jev broadcast-delay demo"
 	@echo
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 	@echo
-	@echo "Variables: WHISPER_MODEL=$(WHISPER_MODEL) (e.g. make run WHISPER_MODEL=base)"
+	@echo "Variables: WHISPER_MODEL=$(WHISPER_MODEL) (e.g. make run WHISPER_MODEL=base), DEVICE=N, ARGS="extra bleep.py flags""
 
 check: ## Verify uv is installed and TYPESAFE_API_KEY is set
 	@command -v uv >/dev/null || { echo "✗ uv not found — install: brew install uv"; exit 1; }
@@ -36,10 +36,19 @@ test: check ## Smoke-test the Jev judgment path with canned sentences (no mic)
 	@uv run smoke_test.py
 
 run: check ## Run the live demo (keys: l/v/p/s toggle features, q quits)
-	@uv run bleep.py --whisper-model $(WHISPER_MODEL) $(if $(DEVICE),--device $(DEVICE))
+	@uv run bleep.py --whisper-model $(WHISPER_MODEL) $(if $(DEVICE),--device $(DEVICE)) $(ARGS)
 
 run-fast: check ## Run with the faster, less accurate 'base' Whisper model
 	@$(MAKE) run WHISPER_MODEL=base
+
+debug: check ## Run live, printing each Jev request and response
+	@$(MAKE) run ARGS="--debug"
+
+debug-request: check ## Run live, printing only outgoing Jev requests
+	@$(MAKE) run ARGS="--show-request"
+
+debug-response: check ## Run live, printing only incoming Jev responses
+	@$(MAKE) run ARGS="--show-response"
 
 clean: ## Remove uv's cached environments for these scripts
 	@uv cache clean >/dev/null 2>&1 || true
