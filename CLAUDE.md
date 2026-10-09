@@ -60,8 +60,7 @@ Four stages, each a top-level section in the file:
    An RMS energy gate (`--gate-db`) starts an utterance; `--silence-ms` of
    quiet or 12 s max ends it. Yields float32 numpy arrays.
 2. Whisper — whisper.cpp via `pywhispercpp` (`small`, Metal on Apple
-   Silicon; ~3x faster than the old `faster-whisper` CPU path). The `initial_prompt` deliberately contains profanity so
-   Whisper doesn't self-censor to `f***`; keep it if you touch transcription.
+   Silicon; ~3x faster than the old `faster-whisper` CPU path). No `initial_prompt`.
 3. `judge_segment` — builds the request: `language` Choice (english /
    spanish / german / other) plus a `pii_{i}` Noul for every
    whitespace-split word, plus one segment-level `shade` Noul (is the speaker

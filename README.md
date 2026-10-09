@@ -87,8 +87,6 @@ mic ──▶ energy gate ──▶ Whisper (local) ──▶ Jev (1 request) �
 1. **Capture.** `sounddevice` streams 16 kHz mono audio in 30 ms blocks. A
    simple RMS gate marks speech; ~700 ms of quiet ends the utterance.
 2. **Transcribe.** whisper.cpp (via `pywhispercpp`) runs the multilingual `small` model, on the GPU via Metal on Apple Silicon.
-   An `initial_prompt` containing mild profanity nudges Whisper away from its
-   habit of self-censoring to `f***`.
 3. **Judge.** The utterance becomes one Jev `system_one` request. State is
    `{"segment": text, "words": [...]}` and the questions are:
    - `language` — a **Choice** among `english`, `spanish`, `german`, `other`.
@@ -151,6 +149,5 @@ mic ──▶ energy gate ──▶ Whisper (local) ──▶ Jev (1 request) �
 | Nothing prints while talking | `mise run devices`, pass `--device N`; or lower `--gate-db` to `-45` |
 | Captures constantly in a loud room | raise `--gate-db` to `-30` |
 | `✗ TYPESAFE_API_KEY not set` | `direnv allow`, or `export TYPESAFE_API_KEY=...` |
-| Whisper outputs `f***` | the `initial_prompt` usually prevents this; try `--whisper-model small` if on `base` |
 | Long lag after each sentence | `mise run start-fast` (Whisper `base`) |
 | Jev error in output | check the key and network; the raw transcript still prints so the demo continues |

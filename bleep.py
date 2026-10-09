@@ -310,18 +310,6 @@ def key_listener(features: dict[str, bool], stop: threading.Event):
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
 
-# Bare profanity list: enough style cue to stop Whisper writing `f***`, with
-# little sentence structure for it to echo back on silence/noise.
-WHISPER_PROMPT = "damn, shit, fuck."
-_PROMPT_WORDS = set(re.findall(r"[a-z']+", WHISPER_PROMPT.lower()))
-
-
-def is_prompt_echo(text: str) -> bool:
-    """True if Whisper just regurgitated the initial prompt (hallucination)."""
-    words = re.findall(r"[a-z']+", text.lower())
-    return len(words) >= 3 and all(w in _PROMPT_WORDS for w in words)
-
-
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--no-language", action="store_true")
@@ -369,9 +357,7 @@ def main() -> int:
     from pywhispercpp.model import Model
     whisper = Model(
         args.whisper_model, n_threads=4, print_realtime=False,
-        print_progress=False,
-        # bias whisper away from self-censoring transcripts
-        initial_prompt=WHISPER_PROMPT)
+        print_progress=False)
 
     stop = threading.Event()
     threading.Thread(target=key_listener, args=(features, stop),
@@ -398,7 +384,7 @@ def main() -> int:
         t0 = time.perf_counter()
         text = " ".join(s.text.strip() for s in whisper.transcribe(audio)).strip()
         whisper_s = time.perf_counter() - t0
-        if not text or is_prompt_echo(text):
+        if not text:
             if final:
                 clear_rows(live_rows)
                 sys.stdout.flush()
