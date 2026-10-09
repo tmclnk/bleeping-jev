@@ -72,6 +72,16 @@ Four stages, each a top-level section in the file:
    length as the original (that's the joke). `shade` elides every word in the
    utterance the same way, and takes precedence over per-word flags.
 
+`--stream`: `utterances(partial_ms)` also yields `(audio_so_far, False)`
+every `partial_ms` of new audio, only when the block queue is empty (the
+consumer has caught up). Main re-runs Whisper + `judge_segment` on each and
+redraws one live line in place (`screen_rows`/`clear_rows`, wrap-aware); the
+final `(audio, True)` prints the permanent line and a status that includes
+live-update token cost. This is the one deliberate exception to
+one-request-per-utterance; batch mode is still the default. With
+`--show-request/--show-response`, live lines print on their own lines
+instead of redrawing.
+
 `features` is a dict mutated live by `key_listener` (raw-mode stdin thread:
 `l`/`v`/`p`/`s`/`q`); the main loop snapshots it per utterance. The listener
 silently exits when stdin isn't a TTY so the script runs headless.

@@ -64,6 +64,18 @@ Flags for `bleep.py` (or `mise run start --whisper-model base --device 4`; extra
 | `--gate-db` | `-40` | energy gate in dBFS; raise toward `-30` in a noisy room |
 | `--silence-ms` | `700` | pause length that ends an utterance |
 | `--jev-model` | `jev-latest` | pin e.g. `jev-1.13.0` if you tune thresholds |
+| `--stream` | off | live line while speaking (`mise run start-stream`) |
+| `--partial-ms` | `1000` | `--stream`: new audio between live updates |
+
+### Streaming mode
+
+`--stream` re-transcribes the utterance-so-far every `--partial-ms` of new
+audio, judges it with Jev, and redraws one live line in place; the pause
+still produces the final line and status. Every live line is judged before
+it's drawn, so raw profanity never hits the screen. Updates are skipped when
+Whisper + Jev fall behind the mic. The cost is one extra Jev request per
+update, roughly 5–8× the tokens per utterance, and the status line shows it:
+`+7 live (9927 tok) = $0.000484`.
 
 ## How it works
 

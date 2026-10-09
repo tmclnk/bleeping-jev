@@ -61,6 +61,10 @@ uv run bleep.py --whisper-model "${usage_whisper_model}" \
 description = "Run with the faster, less accurate 'base' Whisper model"
 run = "mise run start --whisper-model base"
 
+[tasks.start-stream]
+description = "Run with a live, already-redacted line that updates while you speak"
+run = "mise run start -- --stream"
+
 [tasks.clean]
 description = "Remove uv's cached environments for these scripts"
 run = '''

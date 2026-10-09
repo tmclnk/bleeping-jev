@@ -82,14 +82,20 @@ class UtteranceCapture:
             print(f"{DIM}[audio] {status}{RESET}", file=sys.stderr)
         self.blocks.put(indata[:, 0].copy())
 
-    def utterances(self):
+    def utterances(self, partial_ms: int | None = None):
+        """Yields (audio, final). final=True once the speaker pauses. With
+        partial_ms, also yields the utterance-so-far (final=False) every
+        partial_ms of new audio, but only once the consumer has caught up
+        with the mic, so a slow consumer skips stale partials."""
         import sounddevice as sd
 
+        partial_blocks = partial_ms // BLOCK_MS if partial_ms else 0
         with sd.InputStream(samplerate=SAMPLE_RATE, channels=1,
                             blocksize=BLOCK_SAMPLES, dtype="float32",
                             device=self.device, callback=self._callback):
             current: list[np.ndarray] = []
             quiet_run = 0
+            last_partial = 0
             while True:
                 block = self.blocks.get()
                 rms = float(np.sqrt(np.mean(block**2)))
@@ -105,10 +111,17 @@ class UtteranceCapture:
                     ended = quiet_run >= self.silence_blocks
                     if ended or len(current) >= self.max_blocks:
                         audio = np.concatenate(current)
-                        current, quiet_run = [], 0
+                        current, quiet_run, last_partial = [], 0, 0
                         # ignore blips shorter than ~300ms of speech
                         if len(audio) > SAMPLE_RATE * 0.3:
-                            yield audio
+                            yield audio, True
+                        continue
+
+                if (partial_blocks and self.blocks.empty()
+                        and len(current) - last_partial >= partial_blocks
+                        and len(current) * BLOCK_MS >= 500):
+                    last_partial = len(current)
+                    yield np.concatenate(current), False
 
 
 # ------------------------------------------------------------------ jev ----
@@ -264,10 +277,37 @@ def render(text: str, language: str | None, vulgar: list[bool],
     return BOLD + line + RESET
 
 
-def status(latency: float, tokens: int, whisper_s: float) -> str:
+def status(latency: float, tokens: int, whisper_s: float,
+           partials: int = 0, partial_tokens: int = 0) -> str:
     cost = tokens / 1_000_000 * JEV_PRICE_PER_MTOK
-    return (f"{DIM}  jev {latency*1000:.0f}ms · {tokens} tok · "
-            f"${cost:.6f} · whisper {whisper_s:.1f}s{RESET}")
+    line = (f"{DIM}  jev {latency*1000:.0f}ms · {tokens} tok · "
+            f"${cost:.6f} · whisper {whisper_s:.1f}s")
+    if partials:  # streaming: be honest about what the live preview cost
+        total = (tokens + partial_tokens) / 1_000_000 * JEV_PRICE_PER_MTOK
+        line += (f" · +{partials} live ({partial_tokens} tok) "
+                 f"= ${total:.6f}")
+    return line + RESET
+
+
+ANSI_RE = re.compile(r"\033\[[0-9;]*m")
+
+
+def screen_rows(line: str) -> int:
+    """Terminal rows a printed line occupies, so a live line can be redrawn
+    in place even after it wraps."""
+    import shutil
+    import unicodedata
+    cols = shutil.get_terminal_size().columns
+    width = sum(2 if unicodedata.east_asian_width(c) in "WF" else 1
+                for c in ANSI_RE.sub("", line))
+    return max(1, -(-width // cols))
+
+
+def clear_rows(rows: int) -> None:
+    """Erase the `rows` rows ending at the cursor and return to their start."""
+    if rows:
+        up = f"\033[{rows - 1}A" if rows > 1 else ""
+        sys.stdout.write(up + "\r\033[J")
 
 
 # ------------------------------------------------------------------ main ----
@@ -323,6 +363,11 @@ def main() -> int:
                     help="energy gate in dBFS; raise if room noise triggers it")
     ap.add_argument("--silence-ms", type=int, default=700,
                     help="pause length that ends an utterance")
+    ap.add_argument("--stream", action="store_true",
+                    help="show a live, already-redacted line while speaking "
+                         "(one extra Jev request per update)")
+    ap.add_argument("--partial-ms", type=int, default=1000,
+                    help="--stream: new audio between live updates")
     ap.add_argument("--show-request", action="store_true",
                     help="print each outgoing Jev request body")
     ap.add_argument("--show-response", action="store_true",
@@ -362,29 +407,58 @@ def main() -> int:
     print(f"{BOLD}bleep{RESET} {DIM}listening · features: {', '.join(on)}"
           f" · keys: l/v/p/s toggle, q quit{RESET}\n")
 
+    show_request = args.debug or args.show_request
+    show_response = args.debug or args.show_response
+    # HTTP dumps would land under the live line and break the in-place
+    # redraw, so with them on each live update gets its own line instead.
+    redraw = not (show_request or show_response)
+
     capture = UtteranceCapture(args.device, args.gate_db, args.silence_ms,
                                max_utterance_s=12)
-    for audio in capture.utterances():
+    live_rows = 0  # rows taken by the live line currently on screen
+    partials = partial_tokens = 0
+    for audio, final in capture.utterances(
+            args.partial_ms if args.stream else None):
         if stop.is_set():
             break
         t0 = time.perf_counter()
         text = " ".join(s.text.strip() for s in whisper.transcribe(audio)).strip()
         whisper_s = time.perf_counter() - t0
         if not text or is_prompt_echo(text):
+            if final:
+                clear_rows(live_rows)
+                sys.stdout.flush()
+                live_rows = partials = partial_tokens = 0
             continue
 
         snapshot = dict(features)  # freeze toggles for this utterance
         try:
             language, vulgar, pii, shade, latency, tokens = judge_segment(
                 client, text, snapshot, args.jev_model,
-                show_request=args.debug or args.show_request,
-                show_response=args.debug or args.show_response)
+                show_request=show_request, show_response=show_response)
         except Exception as e:
-            print(f"{RED}[jev error]{RESET} {e}\n{text}")
-            continue
+            if final:
+                clear_rows(live_rows)
+                print(f"{RED}[jev error]{RESET} {e}\n{text}")
+                live_rows = partials = partial_tokens = 0
+            continue  # a failed live update just keeps the last one up
 
-        print(render(text, language, vulgar, pii, shade))
-        print(status(latency, tokens, whisper_s) + "\n")
+        line = render(text, language, vulgar, pii, shade)
+        if redraw:
+            clear_rows(live_rows)
+        if final:
+            print(line)
+            print(status(latency, tokens, whisper_s,
+                         partials, partial_tokens) + "\n")
+            live_rows = partials = partial_tokens = 0
+        else:
+            # Never shows raw text: a live line is judged before it's drawn.
+            live = f"{line} {DIM}…{RESET}"
+            sys.stdout.write(live if redraw else live + "\n")
+            sys.stdout.flush()
+            live_rows = screen_rows(live) if redraw else 0
+            partials += 1
+            partial_tokens += tokens
 
     return 0
 
