@@ -39,6 +39,11 @@ uv run smoke_test.py \
   ${usage_debug:+--debug} ${usage_show_request:+--show-request} ${usage_show_response:+--show-response}
 '''
 
+[tasks.pii-eval]
+description = "Score PII judgments against pii_corpus.txt (live API, no mic)"
+depends = ["check"]
+run = "uv run pii_eval.py --quiet --split all"
+
 [tasks.start]
 description = "Run the live demo (keys: l/v/p/s toggle features, ctrl-d quits)"
 depends = ["check"]

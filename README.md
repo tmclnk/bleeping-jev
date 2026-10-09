@@ -96,8 +96,12 @@ mic ──▶ energy gate ──▶ Whisper (local) ──▶ Jev (1 request) �
    - `vulgar_{i}` — one **Noul** per word: *"Is `words[i]` part of a word or
      phrase that would commonly be considered offensive?"* Multi-word
      expressions count every word, so a phrase is flagged as a run.
-   - `pii_{i}` — one **Noul** per word: *"Does `words[i]` reveal a personal
-     name, phone, address, email, or ID number?"*
+   - `pii_{i}` — one **Noul** per word: *"Is the word `words[i]` ("…")
+     itself part of personally identifiable information about a private
+     individual, as defined in `pii_definition`?"* The definition (what counts,
+     what doesn't, multi-word values, value-only) is sent once in the state
+     instead of in every question. Tuned against `pii_corpus.txt` with
+     `pii_eval.py`.
    - `shade` — one **Noul** for the whole segment: *"Is the speaker talking
      shit about another person?"* with `criteria`
      spelling out the boundary: venting about a specific person you work with
@@ -117,7 +121,7 @@ mic ──▶ energy gate ──▶ Whisper (local) ──▶ Jev (1 request) �
 
 - **Latency.** Judgments return in 100–200 ms, well inside a broadcast delay.
 - **Cost.** Pricing is $0.042 per million input tokens with free output, so an
-  utterance costs ~$0.00005. An hour of continuous talk is a few cents.
+  utterance costs ~$0.0001. An hour of continuous talk is a few cents.
 - **Typed answers.** Probabilities and choices, not prose to parse. The
   threshold, the redaction style, and the feature toggles all live in code
   and can change without touching the model.
@@ -132,6 +136,8 @@ mic ──▶ energy gate ──▶ Whisper (local) ──▶ Jev (1 request) �
 | --- | --- |
 | `bleep.py` | the demo: capture, transcribe, judge, render |
 | `smoke_test.py` | runs `judge_segment` on eleven canned sentences (en/de/es, profanity incl. a multi-word phrase, PII, clean, shade incl. non-coworker + near-misses) |
+| `pii_eval.py` | scores the PII questions per word (precision/recall) against `pii_corpus.txt`; `mise run pii-eval` |
+| `pii_corpus.txt` | labeled PII corpus (`[[...]]` marks PII), dev / test / test2 splits |
 | `Makefile` | self-documenting setup/test/run targets |
 | `.envrc` | exports `TYPESAFE_API_KEY` (gitignored `.env` also supported by direnv) |
 

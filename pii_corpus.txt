@@ -1,0 +1,142 @@
+# PII eval corpus for pii_eval.py. One utterance per line, written the way
+# Whisper transcribes speech. Words inside [[...]] are PII; everything else is
+# not. Labels are per whitespace-split word, same as bleep.py.
+#
+# Policy: PII = anything that identifies or contacts a specific private
+# person: their name (first, last, nickname), phone, email, street address
+# (number, street, unit, city/state/zip when part of the address), account /
+# card / ID / license / passport / plate / IP / username numbers, date of
+# birth. NOT PII: public figures, companies, products, places on their own,
+# prices, times, quantities, flight numbers, generic dates, common nouns that
+# happen to be names (bill, rose, will, mark).
+#
+# Lines after "## test" are held out and only checked at the end.
+
+## dev
+Hi, this is [[Margaret]] [[Okafor]] calling about my prescription refill.
+You can reach me at [[617-555-0142]] any time after five.
+My email is [[jlee.writes@gmail.com]] if that's easier for you.
+Please ship it to [[1842]] [[Willow]] [[Creek]] [[Road]], Apartment [[3B]], [[Boise]], [[Idaho]] [[83702]].
+The weather in Boston has been absolutely lovely this week.
+I need to pay the electric bill before Friday or they'll charge a late fee.
+My social security number is [[078-05-1120]] and my birthday is [[March]] [[14th]], [[1986]].
+Can you read me the card number again? It's [[4111]] [[1111]] [[1111]] [[1111]].
+We shipped three hundred units to the warehouse last quarter.
+Tell [[Dmitri]] I said thanks for covering my shift on Saturday.
+The meeting moved from two o'clock to three thirty in conference room B.
+My checking account number is [[004417762390]] at Wells Fargo.
+I read that Elon Musk bought another company this morning.
+Our flight is United 1492 leaving at 6:45 from gate C12.
+Her license plate was [[7XKZ219]], a silver Honda Civic.
+Will you mark the calendar for the twentieth? The roses need watering too.
+My driver's license number is [[D4482-1937-0012]] from the state of Ohio.
+The new iPhone costs about nine hundred and ninety-nine dollars.
+Send the invoice to [[priya.raman@acmecorp.io]] and cc the finance team.
+I grew up in Chicago but moved to Denver after college.
+The patient's medical record number is [[MRN-88213047]], date of birth [[June]] [[2nd]], [[1951]].
+Please call my wife [[Esperanza]] at [[(512)]] [[555-0199]] if anything happens.
+We need about forty pounds of flour and two dozen eggs for the bake sale.
+My username is [[skaterboi_1997]] and I forgot the password.
+The server at [[192.168.14.77]] keeps rejecting my laptop.
+Version 3.2 of the app fixed the crash on startup.
+Mr. [[Haverford]] lives at [[22]] [[Baker]] [[Lane]], right next to the bakery.
+Taylor Swift is playing two nights at the stadium in July.
+My passport number is [[X29481736]] and it expires next year.
+The quarterly revenue was up twelve percent compared to last year.
+Ask [[Bob]] from the third floor whether the printer is fixed.
+Order number 55812 should arrive in three to five business days.
+Hola, me llamo [[Lucía]] [[Fernández]] y mi teléfono es [[655]] [[48]] [[21]] [[90]].
+El restaurante abre a las ocho y cierra a medianoche.
+Ich wohne in der [[Hauptstraße]] [[17]], [[10115]] [[Berlin]].
+Das Wetter in München ist heute wirklich schön.
+My employee ID is [[E-450921]], and my manager is [[Karen]] [[Whitfield]].
+The Golden State Warriors won by eleven points last night.
+Routing number [[021000021]], account [[9876543210]], for the direct deposit.
+I'll be out of the office from the fourth through the eleventh.
+Text me at [[five]] [[five]] [[five]], [[two]] [[one]] [[two]], [[eight]] [[eight]] [[four]] [[four]].
+Netflix raised its subscription price again this month.
+
+I'll grab a coffee with [[Jordan]] after the standup tomorrow.
+Jordan won six championships with the Bulls in the nineties.
+Get the jar of honey from the top shelf, it's next to the rice.
+The doctor said my blood pressure was one twenty over eighty.
+Sign here, initial there, and date it today, the ninth.
+Room 214 is on the second floor past the elevators.
+The pin for the garage door is [[4]] [[8]] [[1]] [[9]].
+My mother's maiden name is [[Kowalczyk]], if you need it for verification.
+We hiked twelve miles up Mount Rainier on Saturday.
+Hey [[Sam]], can you send me the slides from the keynote?
+Christmas falls on a Thursday this year.
+The bus stops at the corner of Fifth and Main every twenty minutes.
+You can find me on Instagram at [[@lena.paints.daily]].
+The Federal Reserve held interest rates steady at five percent.
+Sherlock Holmes lives at 221B Baker Street in the stories.
+My kid's school is Lincoln Elementary, on the east side of town.
+Our wifi password is on the fridge next to the takeout menu.
+Mi hermano [[Javier]] vive en Sevilla y trabaja en un banco.
+Mañana vamos al mercado a comprar tomates y pan.
+Mein Kollege [[Stefan]] [[Brückner]] hat die Nummer [[0171]] [[2345678]].
+Wir treffen uns um halb drei vor dem Bahnhof.
+The VIN on the truck is [[1HGCM82633A004352]].
+[[Hope]] and [[Faith]] are both in the choir with my aunt.
+I'm turning forty next month and I'm dreading it.
+Grace under pressure is the mark of a great pilot.
+
+Aunt [[Marisol]] is flying in from Phoenix on Thursday.
+Uncle [[Ray]] makes the best barbecue in the whole county.
+My grandma still writes letters by hand every Sunday.
+Officer [[Delgado]] took the report and gave me a case number.
+
+## test
+This is Dr. [[Anjali]] [[Mehta]] returning your call from Tuesday.
+Shoot me a note at [[t.oconnell82@yahoo.com]] when you land.
+We moved to [[509]] [[North]] [[Maple]] [[Avenue]] in [[Lakewood]] last spring.
+The museum is free on the first Sunday of every month.
+My Visa ends in [[4492]] and the security code is [[318]].
+Grandpa [[Teodoro]] turns ninety on the twelfth, we're throwing him a party.
+The stock market dropped two percent after the announcement.
+My insurance member ID is [[ZQH774102938]].
+I bought a new pair of running shoes at Nike for eighty bucks.
+Contact [[Wei]] [[Zhang]] at the front desk or on his cell, [[415-555-0187]].
+The bridge has been closed for repairs since August.
+Can you verify the last four of your social? It's [[6621]].
+Mi correo es [[carlos.mendez@hotmail.es]] y vivo en [[Calle]] [[Mayor]] [[12]], [[Madrid]].
+Der Zug nach Hamburg hat zwanzig Minuten Verspätung.
+Pat yourself on the back, the launch went great.
+Leave the package with Mrs. [[Delacroix]] in unit [[4C]].
+Our team shipped fourteen features in the last sprint.
+Barack Obama gave the commencement speech at the university.
+My tax ID is [[12-3456789]] for the business filing.
+The coffee machine on the second floor is broken again.
+Meet me at [[3317]] [[Larkspur]] [[Drive]], the blue house with the red door.
+April showers bring May flowers, as they say.
+[[Hunter]] left his keys at my place again.
+The hunter tracked the deer for three hours.
+Ticket number 8847 is now being served at window four.
+His bank PIN is [[2290]], don't tell anyone.
+Ich heiße [[Klara]] und meine E-Mail ist [[klara.voss@web.de]].
+Napoleon lost at Waterloo in eighteen fifteen.
+The recipe calls for two cups of sugar and a pinch of salt.
+Call Grandma [[Ruth]] on her landline, [[three]] [[one]] [[two]], [[five]] [[five]] [[five]], [[zero]] [[one]] [[three]] [[three]].
+
+## test2
+So I told [[Brenda]] the contract's due by end of month, no exceptions.
+Wire it to account [[3349]] [[0021]] [[7765]], sort code [[20-00-00]].
+The Lakers play the Celtics tonight at seven thirty.
+My cousin [[Tariq]] just got engaged in Paris, it was adorable.
+We're redoing the kitchen, new cabinets, new floor, the works.
+You can text [[Noah]] at [[773-555-0110]], he's handling the catering.
+The library closes early on holidays.
+I live at [[88]] [[Orchard]] [[Hill]] [[Court]], Unit [[12]], near the high school.
+Mark Zuckerberg testified before Congress again.
+My Medicare number is [[1EG4-TE5-MK73]].
+The report is due on the fifteenth, so plan accordingly.
+Su número de cuenta es [[ES91]] [[2100]] [[0418]] [[4502]] [[0005]] [[1332]].
+Hoy hace mucho calor en Valencia.
+Frau [[Schneider]] wohnt im [[dritten]] Stock, Wohnung [[7]].
+Der Film fängt um acht Uhr an.
+Penny for your thoughts, you look miles away.
+The address on file is [[4]] [[Seaview]] [[Terrace]], [[Portland]], [[Maine]] [[04101]].
+I paid twenty dollars for parking downtown, which is ridiculous.
+Log in as [[mgarcia77]] with the temporary password [[Spring2024!]].
+Dawn broke over the hills as we packed up the tent.

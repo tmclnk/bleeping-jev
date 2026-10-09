@@ -160,6 +160,65 @@ def dump_http(label: str, body: bytes | str, head: str) -> None:
             print(f"{DIM}  {k}: {json.dumps(v, ensure_ascii=False)}{RESET}")
 
 
+# Sent once in state rather than repeated in every per-word question: same
+# accuracy on pii_corpus.txt at ~1/3 the tokens. Tuned with pii_eval.py.
+PII_DEFINITION = {
+    "pii_is": (
+        "any part of a private person's name (first, last, or nickname); a "
+        "phone number, including one spoken as words; an email address; any "
+        "part of a street address — house number, street name, unit, city, "
+        "state, or postal code; a date of birth; or an identifying number "
+        "such as a social security, credit card, bank account, routing, "
+        "driver's license, passport, medical record, employee, insurance, or "
+        "tax ID number, an IP address, a license plate or VIN, a username or "
+        "social media handle, or a PIN, password, or security code"
+    ),
+    "multi_word": (
+        "When a value spans several words — a full name, a whole street "
+        "address, a full date of birth, a number read out in groups — every "
+        "word of the value counts."
+    ),
+    "value_only": (
+        "Only the identifying value itself counts, not words that introduce, "
+        "label, or connect it, such as 'my', 'is', 'of', 'number', "
+        "'birthday', 'apartment', 'unit', or 'state of'."
+    ),
+    "not_pii": (
+        "famous public figures and celebrities, companies, brands, products, "
+        "cities, states, and countries unless they are inside a person's "
+        "street address, prices, times, quantities, order or flight numbers, "
+        "ordinary dates, titles and kinship words before a name, like Mr., "
+        "Dr., Officer, Aunt, or Grandma, and words like 'bill', 'rose', or "
+        "'mark' used as ordinary words, fictional characters and their "
+        "addresses, and street names used for public locations like "
+        "intersections, landmarks, or businesses rather than where a person "
+        "lives, ages, and birthdays or anniversaries mentioned without a year"
+    ),
+}
+
+
+def pii_questions(words: list[str], text: str):
+    """Per-word PII Nouls, keyed by word index. Returns (state, questions);
+    the state is a superset of judge_segment's. pii_eval.py scores this
+    alone."""
+    from typesafe_sdk import Noul
+
+    state = json.dumps({"segment": text, "words": words,
+                        "pii_definition": PII_DEFINITION})
+    return state, {
+        # quoting the word stops Jev judging its neighbour (e.g. the "is"
+        # before a date of birth)
+        i: Noul(
+            instructions=(
+                f"In `segment`, is the word `words[{i}]` (\"{w}\") itself "
+                "part of personally identifiable information about a private "
+                "individual, as defined in `pii_definition`?"
+            ),
+        )
+        for i, w in enumerate(words)
+    }
+
+
 def judge_segment(client, text: str, features: dict[str, bool], model: str,
                   show_request: bool = False, show_response: bool = False):
     """One System One request: language Choice + per-word vulgarity/PII
@@ -195,15 +254,9 @@ def judge_segment(client, text: str, features: dict[str, bool], model: str,
                 ),
             )
     if features["pii"]:
-        for i in range(len(words)):
-            questions[f"pii_{i}"] = Noul(
-                instructions=(
-                    f"Does `words[{i}]`, as used in `segment`, reveal "
-                    "personally identifiable information about a specific "
-                    "person — part of a personal name, phone number, street "
-                    "address, email address, or ID/account number?"
-                ),
-            )
+        state, pii_qs = pii_questions(words, text)
+        for i, q in pii_qs.items():
+            questions[f"pii_{i}"] = q
     if features["shade"]:
         questions["shade"] = Noul(
             instructions=(

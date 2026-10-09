@@ -16,6 +16,7 @@ and cost, so keep the status line and the one-request-per-utterance shape.
 ```sh
 mise tasks                # list tasks (defined in mise.toml, which also pins uv)
 mise run setup            # check TYPESAFE_API_KEY, resolve deps, cache Whisper model
+mise run pii-eval         # per-word PII precision/recall vs pii_corpus.txt (live API)
 mise run test             # smoke test: judge_segment on 10 canned sentences (live API, no mic)
 mise run start              # live demo; --whisper-model base, --device N, extra bleep.py flags after --
 mise run devices          # list audio input devices
@@ -24,8 +25,10 @@ uv run bleep.py --help
 uv run bleep.py --debug   # also --show-request / --show-response: dump Jev HTTP bodies
 ```
 
-There is no lint or unit-test suite; `smoke_test.py` is the whole test. It
-requires `TYPESAFE_API_KEY` (exported by `.envrc` via direnv).
+There is no lint or unit-test suite; `smoke_test.py` is the smoke test and
+`pii_eval.py` scores PII judgments against the labeled `pii_corpus.txt` (run
+it after any change to `PII_DEFINITION`/`pii_questions`; scores near 0.5 vary
+run to run, so compare a few runs). Both require `TYPESAFE_API_KEY` (exported by `.envrc` via direnv).
 
 Dependencies are PEP 723 inline metadata in each script, not a pyproject. A
 bare `uv run python -c ...` has none of them; use `uv run --with <pkg> python`
