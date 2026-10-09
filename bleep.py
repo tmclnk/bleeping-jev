@@ -28,6 +28,7 @@ Keys while running:  l = toggle language tags   p = toggle PII redaction
 
 from __future__ import annotations
 
+import _thread
 import argparse
 import json
 import queue
@@ -253,15 +254,10 @@ def render(text: str, language: str | None, pii: list[bool],
     return BOLD + line + RESET
 
 
-def status(latency: float, tokens: int, whisper_s: float,
-           partials: int = 0, partial_tokens: int = 0) -> str:
+def status(latency: float, tokens: int, whisper_s: float) -> str:
     cost = tokens / 1_000_000 * JEV_PRICE_PER_MTOK
     line = (f"{DIM}  jev {latency*1000:.0f}ms · {tokens} tok · "
             f"${cost:.6f} · whisper {whisper_s:.1f}s")
-    if partials:  # streaming: be honest about what the live preview cost
-        total = (tokens + partial_tokens) / 1_000_000 * JEV_PRICE_PER_MTOK
-        line += (f" · +{partials} live ({partial_tokens} tok) "
-                 f"= ${total:.6f}")
     return line + RESET
 
 
@@ -300,8 +296,10 @@ def key_listener(features: dict[str, bool], stop: threading.Event):
         tty.setcbreak(fd)
         while not stop.is_set():
             ch = sys.stdin.read(1).lower()
-            if ch == "q":
+            if ch in ("\x04", ""):  # Ctrl-D, or stdin closed
                 stop.set()
+                _thread.interrupt_main()  # same path as Ctrl-C: exit now
+                break
             elif ch in names:
                 features[names[ch]] = not features[names[ch]]
                 on = [k for k, v in features.items() if v]
@@ -365,7 +363,7 @@ def main() -> int:
 
     on = [k for k, v in features.items() if v]
     print(f"{BOLD}bleep{RESET} {DIM}listening · features: {', '.join(on)}"
-          f" · keys: l/p/s toggle, q quit{RESET}\n")
+          f" · keys: l/p/s toggle, ctrl-c/ctrl-d quit{RESET}\n")
 
     show_request = args.debug or args.show_request
     show_response = args.debug or args.show_response
@@ -376,49 +374,53 @@ def main() -> int:
     capture = UtteranceCapture(args.device, args.gate_db, args.silence_ms,
                                max_utterance_s=12)
     live_rows = 0  # rows taken by the live line currently on screen
-    partials = partial_tokens = 0
-    for audio, final in capture.utterances(
-            args.partial_ms if args.stream else None):
-        if stop.is_set():
-            break
-        t0 = time.perf_counter()
-        text = " ".join(s.text.strip() for s in whisper.transcribe(audio)).strip()
-        whisper_s = time.perf_counter() - t0
-        if not text:
-            if final:
+    requests = total_tokens = 0  # session totals, shown on exit
+    try:
+        for audio, final in capture.utterances(
+                args.partial_ms if args.stream else None):
+            if stop.is_set():
+                break
+            t0 = time.perf_counter()
+            text = " ".join(s.text.strip() for s in whisper.transcribe(audio)).strip()
+            whisper_s = time.perf_counter() - t0
+            if not text:
+                if final:
+                    clear_rows(live_rows)
+                    sys.stdout.flush()
+                    live_rows = 0
+                continue
+
+            snapshot = dict(features)  # freeze toggles for this utterance
+            try:
+                language, pii, shade, latency, tokens = judge_segment(
+                    client, text, snapshot, args.jev_model,
+                    show_request=show_request, show_response=show_response)
+            except Exception as e:
+                if final:
+                    clear_rows(live_rows)
+                    print(f"{RED}[jev error]{RESET} {e}\n{text}")
+                    live_rows = 0
+                continue  # a failed live update just keeps the last one up
+
+            requests += 1
+            total_tokens += tokens
+            line = render(text, language, pii, shade)
+            if redraw:
                 clear_rows(live_rows)
+            if final:
+                print(line)
+                print(status(latency, tokens, whisper_s) + "\n")
+                live_rows = 0
+            else:
+                # Never shows raw text: a live line is judged before it's drawn.
+                live = f"{line} {DIM}…{RESET}"
+                sys.stdout.write(live if redraw else live + "\n")
                 sys.stdout.flush()
-                live_rows = partials = partial_tokens = 0
-            continue
-
-        snapshot = dict(features)  # freeze toggles for this utterance
-        try:
-            language, pii, shade, latency, tokens = judge_segment(
-                client, text, snapshot, args.jev_model,
-                show_request=show_request, show_response=show_response)
-        except Exception as e:
-            if final:
-                clear_rows(live_rows)
-                print(f"{RED}[jev error]{RESET} {e}\n{text}")
-                live_rows = partials = partial_tokens = 0
-            continue  # a failed live update just keeps the last one up
-
-        line = render(text, language, pii, shade)
-        if redraw:
-            clear_rows(live_rows)
-        if final:
-            print(line)
-            print(status(latency, tokens, whisper_s,
-                         partials, partial_tokens) + "\n")
-            live_rows = partials = partial_tokens = 0
-        else:
-            # Never shows raw text: a live line is judged before it's drawn.
-            live = f"{line} {DIM}…{RESET}"
-            sys.stdout.write(live if redraw else live + "\n")
-            sys.stdout.flush()
-            live_rows = screen_rows(live) if redraw else 0
-            partials += 1
-            partial_tokens += tokens
+                live_rows = screen_rows(live) if redraw else 0
+    finally:
+        cost = total_tokens / 1_000_000 * JEV_PRICE_PER_MTOK
+        print(f"\n{DIM}session: {requests} jev requests · {total_tokens} tok "
+              f"· ${cost:.6f}{RESET}")
 
     return 0
 

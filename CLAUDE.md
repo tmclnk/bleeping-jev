@@ -82,7 +82,7 @@ one-request-per-utterance; batch mode is still the default. With
 instead of redrawing.
 
 `features` is a dict mutated live by `key_listener` (raw-mode stdin thread:
-`l`/`p`/`s`/`q`); the main loop snapshots it per utterance. The listener
+`l`/`p`/`s`; Ctrl-D quits); the main loop snapshots it per utterance. The listener
 silently exits when stdin isn't a TTY so the script runs headless.
 
 `smoke_test.py` imports `bleep` and calls `judge_segment` + `render`
