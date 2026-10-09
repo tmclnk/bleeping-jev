@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 A conference demo: live microphone speech → local Whisper transcription → one
 [Jev](https://typesafe.ai) request per utterance → stdout with `<english>`/
 `<spanish>`/`<german>` tags, vulgarities as red random cartoon-swear glyphs (`VULGAR_GLYPHS`, same length), PII as yellow `▒`
-blocks, whole utterances that trash-talk a coworker as magenta `▓` blocks,
+blocks, whole utterances that trash-talk a person as magenta `▓` blocks,
 and a latency/cost status line. The point of the demo is Jev's speed
 and cost, so keep the status line and the one-request-per-utterance shape.
 
@@ -16,7 +16,7 @@ and cost, so keep the status line and the one-request-per-utterance shape.
 ```sh
 make            # list targets
 make setup      # check uv + TYPESAFE_API_KEY, resolve deps, cache Whisper model
-make test       # smoke test: runs judge_segment on 9 canned sentences (hits the live API, no mic)
+make test       # smoke test: runs judge_segment on 10 canned sentences (hits the live API, no mic)
 make run        # live demo; WHISPER_MODEL=base DEVICE=N are optional
 make devices    # list audio input devices
 uv run bleep.py --help
@@ -65,7 +65,7 @@ Four stages, each a top-level section in the file:
 3. `judge_segment` — builds the request: `language` Choice (english /
    spanish / german / other) plus `vulgar_{i}` and `pii_{i}` Nouls for every
    whitespace-split word, plus one segment-level `shade` Noul (is the speaker
-   disparaging a coworker?) with `NoulCriteria` true/false descriptions. Only
+   disparaging any person?) with `NoulCriteria` true/false descriptions. Only
    enabled features add questions. Returns
    `(language, vulgar_flags, pii_flags, shade, latency_s, tokens)`.
 4. `render`/`status` — ANSI output. Words are redacted whole-token, same

@@ -7,7 +7,7 @@ Broadcasters run a 7-second delay so someone can hit the "dump" button before
 a curse word reaches air. This demo replaces the button with a model: you talk
 into a microphone, and each sentence prints to the screen with its language
 tagged, vulgarities bleeped, personal information redacted, and any sentence
-where you're talking shit about a coworker elided entirely — judged by Jev in
+where you're talking shit about someone elided entirely — judged by Jev in
 roughly 150 milliseconds for about five thousandths of a cent.
 
 ```
@@ -25,7 +25,7 @@ roughly 150 milliseconds for about five thousandths of a cent.
 ```
 
 Red `@#$%&!` is a vulgarity replaced with random cartoon-swear glyphs; yellow `▒▒▒▒` is redacted PII; a whole line
-of magenta `▓▓▓▓` means you were talking shit about a coworker. The status
+of magenta `▓▓▓▓` means you were talking shit about someone. The status
 line under each sentence is the pitch: Jev's wall-clock latency, the tokens
 sent, and what they cost.
 
@@ -49,7 +49,7 @@ inline in each script (PEP 723), so `uv run bleep.py` works without a venv.
 | `l` | toggle language tags |
 | `v` | toggle vulgarity bleeping |
 | `p` | toggle PII redaction |
-| `s` | toggle coworker-shade elision |
+| `s` | toggle shade elision |
 | `q` | quit |
 
 Toggling live is a good demo beat: say the same sentence with `v` off and on.
@@ -86,7 +86,7 @@ mic ──▶ energy gate ──▶ Whisper (local) ──▶ Jev (1 request) �
    - `pii_{i}` — one **Noul** per word: *"Does `words[i]` reveal a personal
      name, phone, address, email, or ID number?"*
    - `shade` — one **Noul** for the whole segment: *"Is the speaker talking
-     shit about a coworker, colleague, boss, or teammate?"* with `criteria`
+     shit about another person?"* with `criteria`
      spelling out the boundary: venting about a specific person you work with
      is a yes; a neutral mention, praise, or a complaint about a product or
      company is a no.
@@ -118,7 +118,7 @@ mic ──▶ energy gate ──▶ Whisper (local) ──▶ Jev (1 request) �
 | File | Purpose |
 | --- | --- |
 | `bleep.py` | the demo: capture, transcribe, judge, render |
-| `smoke_test.py` | runs `judge_segment` on nine canned sentences (en/de/es, vulgar, PII, clean, coworker shade + near-misses) |
+| `smoke_test.py` | runs `judge_segment` on ten canned sentences (en/de/es, vulgar, PII, clean, shade incl. non-coworker + near-misses) |
 | `Makefile` | self-documenting setup/test/run targets |
 | `.envrc` | exports `TYPESAFE_API_KEY` (gitignored `.env` also supported by direnv) |
 

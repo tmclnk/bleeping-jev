@@ -24,7 +24,7 @@ the screen. Each line prints with Jev's wall-clock latency and token cost,
 because that's the point of the demo.
 
 Keys while running:  l = toggle language tags   v = toggle vulgarity bleep
-                     p = toggle PII redaction   s = toggle coworker shade
+                     p = toggle PII redaction   s = toggle shade
                      q = quit
 """
 
@@ -177,16 +177,15 @@ def judge_segment(client, text: str, features: dict[str, bool], model: str,
     if features["shade"]:
         questions["shade"] = Noul(
             instructions=(
-                "In `segment`, is the speaker talking shit about a coworker, "
-                "colleague, boss, teammate, or someone they work with — "
-                "insulting them, mocking them, complaining about them, or "
-                "gossiping about them behind their back?"
+                "In `segment`, is the speaker talking shit about another "
+                "person — insulting them, mocking them, complaining about "
+                "them, or gossiping about them behind their back?"
             ),
             criteria=NoulCriteria(
                 true=("Disparages, mocks, or vents about a specific person "
-                      "the speaker works with, e.g. 'Dave in accounting is "
-                      "useless', 'my manager has no idea what she's doing'"),
-                false=("No coworker is mentioned, or a coworker is mentioned "
+                      "(anyone, not just a coworker), e.g. 'Dave is useless', "
+                      "'my sister has no idea what she's doing'"),
+                false=("No person is mentioned, or a person is mentioned "
                        "neutrally or positively, or the complaint is about a "
                        "product, company, or situation rather than a person"),
             ),
@@ -301,7 +300,7 @@ def main() -> int:
     ap.add_argument("--no-vulgarity", action="store_true")
     ap.add_argument("--no-pii", action="store_true")
     ap.add_argument("--no-shade", action="store_true",
-                    help="don't elide utterances that trash-talk a coworker")
+                    help="don't elide utterances that trash-talk a person")
     ap.add_argument("--jev-model", default="jev-latest")
     ap.add_argument("--whisper-model", default="small",
                     help="faster-whisper model (small handles de/es well)")

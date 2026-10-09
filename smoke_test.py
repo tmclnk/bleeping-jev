@@ -19,6 +19,7 @@ cases = [
     "The weather in Boston is lovely today",
     "Honestly Dave from accounting is completely useless at his job",
     "My manager has no clue what she's doing, it's embarrassing",
+    "My brother-in-law is a total idiot and everyone in the family knows it",
     "Dave from accounting sent over the Q3 numbers this morning",
     "This vendor's API is garbage and their docs are worse",
 ]
