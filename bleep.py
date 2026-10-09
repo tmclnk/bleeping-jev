@@ -367,6 +367,9 @@ def main() -> int:
                          "(one extra Jev request per update)")
     ap.add_argument("--partial-ms", type=int, default=1000,
                     help="--stream: new audio between live updates")
+    ap.add_argument("--out", default=None,
+                    help="append final lines (tags + redactions, no ANSI) to "
+                         "this file; default {timestamp}.out")
     ap.add_argument("--show-request", action="store_true",
                     help="print each outgoing Jev request body")
     ap.add_argument("--show-response", action="store_true",
@@ -412,6 +415,9 @@ def main() -> int:
 
     capture = UtteranceCapture(args.device, args.gate_db, args.silence_ms,
                                max_utterance_s=12)
+    out_path = args.out or time.strftime("%Y%m%d-%H%M%S") + ".out"
+    out_file = open(out_path, "a", encoding="utf-8", buffering=1)
+    print(f"{DIM}appending to {out_path}{RESET}\n")
     live_rows = 0  # rows taken by the live line currently on screen
     requests = total_tokens = 0  # session totals, shown on exit
     try:
@@ -448,6 +454,7 @@ def main() -> int:
                 clear_rows(live_rows)
             if final:
                 print(line)
+                out_file.write(ANSI_RE.sub("", line) + "\n")
                 print(status(latency, tokens, whisper_s) + "\n")
                 live_rows = 0
             else:
@@ -457,6 +464,7 @@ def main() -> int:
                 sys.stdout.flush()
                 live_rows = screen_rows(live) if redraw else 0
     finally:
+        out_file.close()
         cost = total_tokens / 1_000_000 * JEV_PRICE_PER_MTOK
         print(f"\n{DIM}session: {requests} jev requests · {total_tokens} tok "
               f"· ${cost:.6f}{RESET}")
