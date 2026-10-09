@@ -35,7 +35,7 @@ devices: ## List audio input devices (pick one with: make run DEVICE=N)
 test: check ## Smoke-test the Jev judgment path with canned sentences (no mic)
 	@uv run smoke_test.py
 
-run: check ## Run the live demo (keys: l/v/p toggle features, q quits)
+run: check ## Run the live demo (keys: l/v/p/s toggle features, q quits)
 	@uv run bleep.py --whisper-model $(WHISPER_MODEL) $(if $(DEVICE),--device $(DEVICE))
 
 run-fast: check ## Run with the faster, less accurate 'base' Whisper model

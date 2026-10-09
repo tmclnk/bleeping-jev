@@ -6,8 +6,9 @@ System One model.
 Broadcasters run a 7-second delay so someone can hit the "dump" button before
 a curse word reaches air. This demo replaces the button with a model: you talk
 into a microphone, and each sentence prints to the screen with its language
-tagged, vulgarities bleeped, and personal information redacted — judged by
-Jev in roughly 150 milliseconds for about five thousandths of a cent.
+tagged, vulgarities bleeped, personal information redacted, and any sentence
+where you're talking shit about a coworker elided entirely — judged by Jev in
+roughly 150 milliseconds for about five thousandths of a cent.
 
 ```
 <english>I have a ███████ great feeling about this demo</english>
@@ -18,9 +19,13 @@ Jev in roughly 150 milliseconds for about five thousandths of a cent.
 
 <english>Call me at ▒▒▒▒▒▒▒▒▒▒▒▒ or email ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒</english>
   jev 136ms · 1070 tok · $0.000045 · whisper 1.7s
+
+<english>▓▓▓▓▓▓▓▓ ▓▓▓▓ ▓▓▓▓ ▓▓▓▓▓▓▓▓▓▓ ▓▓ ▓▓▓▓▓▓▓▓▓▓ ▓▓▓▓▓▓▓ ▓▓ ▓▓▓ ▓▓▓</english>
+  jev 118ms · 1495 tok · $0.000063 · whisper 2.0s
 ```
 
-Red `████` is a bleeped vulgarity; yellow `▒▒▒▒` is redacted PII. The status
+Red `████` is a bleeped vulgarity; yellow `▒▒▒▒` is redacted PII; a whole line
+of magenta `▓▓▓▓` means you were talking shit about a coworker. The status
 line under each sentence is the pitch: Jev's wall-clock latency, the tokens
 sent, and what they cost.
 
@@ -44,6 +49,7 @@ inline in each script (PEP 723), so `uv run bleep.py` works without a venv.
 | `l` | toggle language tags |
 | `v` | toggle vulgarity bleeping |
 | `p` | toggle PII redaction |
+| `s` | toggle coworker-shade elision |
 | `q` | quit |
 
 Toggling live is a good demo beat: say the same sentence with `v` off and on.
@@ -52,7 +58,7 @@ Flags for `bleep.py` (or `make run WHISPER_MODEL=base DEVICE=4`):
 
 | Flag | Default | Purpose |
 | --- | --- | --- |
-| `--no-language` / `--no-vulgarity` / `--no-pii` | all on | start with a feature disabled |
+| `--no-language` / `--no-vulgarity` / `--no-pii` / `--no-shade` | all on | start with a feature disabled |
 | `--whisper-model` | `small` | faster-whisper size; `base` is faster, `small` handles de/es better |
 | `--device N` | system default | input device index; `--list-devices` shows them |
 | `--gate-db` | `-40` | energy gate in dBFS; raise toward `-30` in a noisy room |
@@ -63,7 +69,7 @@ Flags for `bleep.py` (or `make run WHISPER_MODEL=base DEVICE=4`):
 
 ```
 mic ──▶ energy gate ──▶ Whisper (local) ──▶ Jev (1 request) ──▶ render ──▶ stdout
-        30ms blocks     faster-whisper      ~35 questions       █ / ▒ / <lang>
+        30ms blocks     faster-whisper      ~36 questions       █ / ▒ / ▓ / <lang>
         pause = cut     small, int8         in parallel
 ```
 
@@ -79,13 +85,19 @@ mic ──▶ energy gate ──▶ Whisper (local) ──▶ Jev (1 request) �
      `segment`, a profanity a broadcaster would bleep?"*
    - `pii_{i}` — one **Noul** per word: *"Does `words[i]` reveal a personal
      name, phone, address, email, or ID number?"*
+   - `shade` — one **Noul** for the whole segment: *"Is the speaker talking
+     shit about a coworker, colleague, boss, or teammate?"* with `criteria`
+     spelling out the boundary: venting about a specific person you work with
+     is a yes; a neutral mention, praise, or a complaint about a product or
+     company is a no.
 
    All questions run in parallel inside a single request (TypeSafe's
    [speculative fan-out](https://docs.typesafe.ai/patterns/fan-out.md)
    pattern). A 15-word sentence is ~31 questions and ~1,100 tokens.
 4. **Render.** Code — not the model — does the redaction: any word whose Noul
    probability is ≥ 0.5 is replaced with block characters of the same length,
-   and the line is wrapped in the language tag. Jev never generates text; it
+   and the line is wrapped in the language tag. If `shade` is ≥ 0.5 the
+   entire utterance is elided word-by-word (lengths preserved, naturally). Jev never generates text; it
    returns typed answers that the program consumes directly.
 
 ### Why Jev fits here
@@ -106,7 +118,7 @@ mic ──▶ energy gate ──▶ Whisper (local) ──▶ Jev (1 request) �
 | File | Purpose |
 | --- | --- |
 | `bleep.py` | the demo: capture, transcribe, judge, render |
-| `smoke_test.py` | runs `judge_segment` on five canned sentences (en/de/es, vulgar, PII, clean) |
+| `smoke_test.py` | runs `judge_segment` on nine canned sentences (en/de/es, vulgar, PII, clean, coworker shade + near-misses) |
 | `Makefile` | self-documenting setup/test/run targets |
 | `.envrc` | exports `TYPESAFE_API_KEY` (gitignored `.env` also supported by direnv) |
 

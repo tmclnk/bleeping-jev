@@ -7,7 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 A conference demo: live microphone speech → local Whisper transcription → one
 [Jev](https://typesafe.ai) request per utterance → stdout with `<english>`/
 `<spanish>`/`<german>` tags, vulgarities as red `█` blocks, PII as yellow `▒`
-blocks, and a latency/cost status line. The point of the demo is Jev's speed
+blocks, whole utterances that trash-talk a coworker as magenta `▓` blocks,
+and a latency/cost status line. The point of the demo is Jev's speed
 and cost, so keep the status line and the one-request-per-utterance shape.
 
 ## Commands
@@ -15,7 +16,7 @@ and cost, so keep the status line and the one-request-per-utterance shape.
 ```sh
 make            # list targets
 make setup      # check uv + TYPESAFE_API_KEY, resolve deps, cache Whisper model
-make test       # smoke test: runs judge_segment on 5 canned sentences (hits the live API, no mic)
+make test       # smoke test: runs judge_segment on 9 canned sentences (hits the live API, no mic)
 make run        # live demo; WHISPER_MODEL=base DEVICE=N are optional
 make devices    # list audio input devices
 uv run bleep.py --help
@@ -62,13 +63,16 @@ Four stages, each a top-level section in the file:
    Whisper doesn't self-censor to `f***`; keep it if you touch transcription.
 3. `judge_segment` — builds the request: `language` Choice (english /
    spanish / german / other) plus `vulgar_{i}` and `pii_{i}` Nouls for every
-   whitespace-split word. Only enabled features add questions. Returns
-   `(language, vulgar_flags, pii_flags, latency_s, tokens)`.
+   whitespace-split word, plus one segment-level `shade` Noul (is the speaker
+   disparaging a coworker?) with `NoulCriteria` true/false descriptions. Only
+   enabled features add questions. Returns
+   `(language, vulgar_flags, pii_flags, shade, latency_s, tokens)`.
 4. `render`/`status` — ANSI output. Words are redacted whole-token, same
-   length as the original (that's the joke).
+   length as the original (that's the joke). `shade` elides every word in the
+   utterance the same way, and takes precedence over per-word flags.
 
 `features` is a dict mutated live by `key_listener` (raw-mode stdin thread:
-`l`/`v`/`p`/`q`); the main loop snapshots it per utterance. The listener
+`l`/`v`/`p`/`s`/`q`); the main loop snapshots it per utterance. The listener
 silently exits when stdin isn't a TTY so the script runs headless.
 
 `smoke_test.py` imports `bleep` and calls `judge_segment` + `render`

@@ -16,13 +16,16 @@ Jev one batched System One request per utterance:
   * language   — Choice: which language is the segment in?
   * vulgarity  — one Noul per word: is this word a profanity here?
   * pii        — one Noul per word: does this word reveal PII here?
+  * shade      — one Noul for the whole utterance: is the speaker talking
+                 shit about a coworker? If so the entire line is elided.
 
 Flagged words are redacted with block characters before the text ever hits
 the screen. Each line prints with Jev's wall-clock latency and token cost,
 because that's the point of the demo.
 
 Keys while running:  l = toggle language tags   v = toggle vulgarity bleep
-                     p = toggle PII redaction   q = quit
+                     p = toggle PII redaction   s = toggle coworker shade
+                     q = quit
 """
 
 from __future__ import annotations
@@ -49,10 +52,13 @@ DIM = "\033[2m"
 BOLD = "\033[1m"
 RED = "\033[31m"
 YELLOW = "\033[33m"
+MAGENTA = "\033[35m"
 RESET = "\033[0m"
 
 VULGAR_BLOCK = "█"
 PII_BLOCK = "▒"
+SHADE_BLOCK = "▓"
+SHADE_THRESHOLD = 0.5
 
 
 # ---------------------------------------------------------------- audio ----
@@ -109,9 +115,10 @@ WORD_RE = re.compile(r"\S+")
 
 
 def judge_segment(client, text: str, features: dict[str, bool], model: str):
-    """One System One request: language Choice + per-word vulgarity/PII Nouls.
-    Returns (language, vulgar_flags, pii_flags, latency_s, tokens)."""
-    from typesafe_sdk import Choice, Noul
+    """One System One request: language Choice + per-word vulgarity/PII Nouls
+    + one segment-level coworker-shade Noul.
+    Returns (language, vulgar_flags, pii_flags, shade, latency_s, tokens)."""
+    from typesafe_sdk import Choice, Noul, NoulCriteria
 
     words = WORD_RE.findall(text)
     state = json.dumps({"segment": text, "words": words})
@@ -146,9 +153,26 @@ def judge_segment(client, text: str, features: dict[str, bool], model: str):
                     "address, email address, or ID/account number?"
                 ),
             )
+    if features["shade"]:
+        questions["shade"] = Noul(
+            instructions=(
+                "In `segment`, is the speaker talking shit about a coworker, "
+                "colleague, boss, teammate, or someone they work with — "
+                "insulting them, mocking them, complaining about them, or "
+                "gossiping about them behind their back?"
+            ),
+            criteria=NoulCriteria(
+                true=("Disparages, mocks, or vents about a specific person "
+                      "the speaker works with, e.g. 'Dave in accounting is "
+                      "useless', 'my manager has no idea what she's doing'"),
+                false=("No coworker is mentioned, or a coworker is mentioned "
+                       "neutrally or positively, or the complaint is about a "
+                       "product, company, or situation rather than a person"),
+            ),
+        )
 
     if not questions:
-        return None, [False] * len(words), [False] * len(words), 0.0, 0
+        return None, [False] * len(words), [False] * len(words), False, 0.0, 0
 
     t0 = time.perf_counter()
     result = client.system_one(state, questions, model=model)
@@ -166,6 +190,8 @@ def judge_segment(client, text: str, features: dict[str, bool], model: str):
 
     vulgar = flags("vulgar", features["vulgarity"])
     pii = flags("pii", features["pii"])
+    shade = (features["shade"]
+             and result.nouls["shade"].noul >= SHADE_THRESHOLD)
 
     tokens = 0
     try:
@@ -177,7 +203,7 @@ def judge_segment(client, text: str, features: dict[str, bool], model: str):
         tokens = (len(state) + sum(len(str(q.instructions))
                                    for q in questions.values())) // 4
 
-    return language, vulgar, pii, latency, tokens
+    return language, vulgar, pii, shade, latency, tokens
 
 
 # ------------------------------------------------------------- rendering ----
@@ -187,11 +213,13 @@ def redact(word: str, block: str) -> str:
 
 
 def render(text: str, language: str | None, vulgar: list[bool],
-           pii: list[bool]) -> str:
+           pii: list[bool], shade: bool = False) -> str:
     out: list[str] = []
     for i, m in enumerate(WORD_RE.finditer(text)):
         w = m.group()
-        if vulgar[i]:
+        if shade:  # whole utterance elided: nothing survives, lengths do
+            out.append(MAGENTA + redact(w, SHADE_BLOCK) + RESET)
+        elif vulgar[i]:
             out.append(RED + redact(w, VULGAR_BLOCK) + RESET)
         elif pii[i]:
             out.append(YELLOW + redact(w, PII_BLOCK) + RESET)
@@ -218,7 +246,7 @@ def key_listener(features: dict[str, bool], stop: threading.Event):
         old = termios.tcgetattr(fd)
     except (termios.error, ValueError, OSError):
         return  # no tty (piped/background run): toggles unavailable
-    names = {"l": "language", "v": "vulgarity", "p": "pii"}
+    names = {"l": "language", "v": "vulgarity", "p": "pii", "s": "shade"}
     try:
         tty.setcbreak(fd)
         while not stop.is_set():
@@ -238,6 +266,8 @@ def main() -> int:
     ap.add_argument("--no-language", action="store_true")
     ap.add_argument("--no-vulgarity", action="store_true")
     ap.add_argument("--no-pii", action="store_true")
+    ap.add_argument("--no-shade", action="store_true",
+                    help="don't elide utterances that trash-talk a coworker")
     ap.add_argument("--jev-model", default="jev-latest")
     ap.add_argument("--whisper-model", default="small",
                     help="faster-whisper model (small handles de/es well)")
@@ -259,6 +289,7 @@ def main() -> int:
         "language": not args.no_language,
         "vulgarity": not args.no_vulgarity,
         "pii": not args.no_pii,
+        "shade": not args.no_shade,
     }
 
     from typesafe_sdk import TypeSafeClient
@@ -274,7 +305,7 @@ def main() -> int:
 
     on = [k for k, v in features.items() if v]
     print(f"{BOLD}bleep{RESET} {DIM}listening · features: {', '.join(on)}"
-          f" · keys: l/v/p toggle, q quit{RESET}\n")
+          f" · keys: l/v/p/s toggle, q quit{RESET}\n")
 
     capture = UtteranceCapture(args.device, args.gate_db, args.silence_ms,
                                max_utterance_s=12)
@@ -294,13 +325,13 @@ def main() -> int:
 
         snapshot = dict(features)  # freeze toggles for this utterance
         try:
-            language, vulgar, pii, latency, tokens = judge_segment(
+            language, vulgar, pii, shade, latency, tokens = judge_segment(
                 client, text, snapshot, args.jev_model)
         except Exception as e:
             print(f"{RED}[jev error]{RESET} {e}\n{text}")
             continue
 
-        print(render(text, language, vulgar, pii))
+        print(render(text, language, vulgar, pii, shade))
         print(status(latency, tokens, whisper_s) + "\n")
 
     return 0
