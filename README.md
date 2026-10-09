@@ -32,12 +32,12 @@ sent, and what they cost.
 ## Quick start
 
 ```sh
-make setup   # check uv + API key, resolve deps, pre-download the Whisper model
-make test    # smoke-test the Jev path with canned sentences — no mic needed
-make run     # live demo
+mise run setup   # check uv + API key, resolve deps, pre-download the Whisper model
+mise run test    # smoke-test the Jev path with canned sentences — no mic needed
+mise run run     # live demo (add --debug to dump Jev requests/responses)
 ```
 
-`make` alone lists every target. Requirements: macOS, [uv](https://docs.astral.sh/uv/),
+`mise tasks` lists every task, `mise run <task> --help` its flags. Requirements: macOS, [mise](https://mise.jdx.dev/) (installs `uv` per `mise.toml`),
 a `TYPESAFE_API_KEY` from [console.typesafe.ai/keys](https://console.typesafe.ai/keys)
 (the repo's `.envrc` exports it for direnv). Python dependencies are declared
 inline in each script (PEP 723), so `uv run bleep.py` works without a venv.
@@ -54,7 +54,7 @@ inline in each script (PEP 723), so `uv run bleep.py` works without a venv.
 
 Toggling live is a good demo beat: say the same sentence with `v` off and on.
 
-Flags for `bleep.py` (or `make run WHISPER_MODEL=base DEVICE=4`):
+Flags for `bleep.py` (or `mise run run --whisper-model base --device 4`; extra flags after `--`):
 
 | Flag | Default | Purpose |
 | --- | --- | --- |
@@ -124,7 +124,7 @@ mic ──▶ energy gate ──▶ Whisper (local) ──▶ Jev (1 request) �
 
 ## Demo-day checklist
 
-- Run `make setup` and then `make run` once from the terminal you'll present
+- Run `mise run setup` and then `mise run run` once from the terminal you'll present
   with. macOS prompts for microphone permission on the first live run.
 - Fullscreen the terminal and raise the font (`Cmd +`) until one sentence
   fills the projector.
@@ -139,9 +139,9 @@ mic ──▶ energy gate ──▶ Whisper (local) ──▶ Jev (1 request) �
 
 | Symptom | Fix |
 | --- | --- |
-| Nothing prints while talking | `make devices`, pass `--device N`; or lower `--gate-db` to `-45` |
+| Nothing prints while talking | `mise run devices`, pass `--device N`; or lower `--gate-db` to `-45` |
 | Captures constantly in a loud room | raise `--gate-db` to `-30` |
 | `✗ TYPESAFE_API_KEY not set` | `direnv allow`, or `export TYPESAFE_API_KEY=...` |
 | Whisper outputs `f***` | the `initial_prompt` usually prevents this; try `--whisper-model small` if on `base` |
-| Long lag after each sentence | `make run-fast` (Whisper `base`) |
+| Long lag after each sentence | `mise run run-fast` (Whisper `base`) |
 | Jev error in output | check the key and network; the raw transcript still prints so the demo continues |

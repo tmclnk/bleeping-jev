@@ -14,11 +14,12 @@ and cost, so keep the status line and the one-request-per-utterance shape.
 ## Commands
 
 ```sh
-make            # list targets
-make setup      # check uv + TYPESAFE_API_KEY, resolve deps, cache Whisper model
-make test       # smoke test: runs judge_segment on 10 canned sentences (hits the live API, no mic)
-make run        # live demo; WHISPER_MODEL=base DEVICE=N are optional
-make devices    # list audio input devices
+mise tasks                # list tasks (defined in mise.toml, which also pins uv)
+mise run setup            # check TYPESAFE_API_KEY, resolve deps, cache Whisper model
+mise run test             # smoke test: judge_segment on 10 canned sentences (live API, no mic)
+mise run run              # live demo; --whisper-model base, --device N, extra bleep.py flags after --
+mise run devices          # list audio input devices
+# --debug / --show-request / --show-response work on both `run` and `test`
 uv run bleep.py --help
 uv run bleep.py --debug   # also --show-request / --show-response: dump Jev HTTP bodies
 ```

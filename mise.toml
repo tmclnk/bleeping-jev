@@ -1,0 +1,69 @@
+[tools]
+uv = "latest"
+
+[tasks.check]
+description = "Verify TYPESAFE_API_KEY is set"
+run = '''
+test -n "$TYPESAFE_API_KEY" || { echo "✗ TYPESAFE_API_KEY not set — see .envrc (direnv allow)"; exit 1; }
+echo "✓ TYPESAFE_API_KEY set"
+'''
+
+[tasks.setup]
+description = "Resolve dependencies and pre-download the Whisper model"
+depends = ["check"]
+usage = 'flag "--whisper-model <model>" default="small" help="Whisper model to cache"'
+run = '''
+echo "Resolving Python dependencies…"
+uv run bleep.py --list-devices >/dev/null
+echo "Downloading/caching Whisper '${usage_whisper_model}' model…"
+uv run --with faster-whisper python -c \
+  "from faster_whisper import WhisperModel; WhisperModel('${usage_whisper_model}', compute_type='int8')"
+echo "✓ setup complete — run 'mise run test', then 'mise run run'"
+echo "  (first 'mise run run' will prompt for microphone permission)"
+'''
+
+[tasks.devices]
+description = "List audio input devices (pick one with: mise run run --device N)"
+run = "uv run bleep.py --list-devices"
+
+[tasks.test]
+description = "Smoke-test the Jev judgment path with canned sentences (no mic)"
+depends = ["check"]
+usage = '''
+flag "--debug" help="Print each Jev request and response"
+flag "--show-request" help="Print only outgoing Jev requests"
+flag "--show-response" help="Print only incoming Jev responses"
+'''
+run = '''
+uv run smoke_test.py \
+  ${usage_debug:+--debug} ${usage_show_request:+--show-request} ${usage_show_response:+--show-response}
+'''
+
+[tasks.run]
+description = "Run the live demo (keys: l/v/p/s toggle features, q quits)"
+depends = ["check"]
+usage = '''
+flag "--whisper-model <model>" default="small" help="Whisper model (e.g. base for faster, less accurate)"
+flag "--device <index>" help="Audio input device index (see: mise run devices)"
+flag "--debug" help="Print each Jev request and response"
+flag "--show-request" help="Print only outgoing Jev requests"
+flag "--show-response" help="Print only incoming Jev responses"
+arg "[extra]" var=#true help="Extra bleep.py flags, after --"
+'''
+run = '''
+uv run bleep.py --whisper-model "${usage_whisper_model}" \
+  ${usage_device:+--device "$usage_device"} \
+  ${usage_debug:+--debug} ${usage_show_request:+--show-request} ${usage_show_response:+--show-response} \
+  ${usage_extra}
+'''
+
+[tasks.run-fast]
+description = "Run with the faster, less accurate 'base' Whisper model"
+run = "mise run run --whisper-model base"
+
+[tasks.clean]
+description = "Remove uv's cached environments for these scripts"
+run = '''
+uv cache clean >/dev/null 2>&1 || true
+echo "✓ uv cache cleaned (Whisper models in ~/.cache/huggingface are kept)"
+'''
