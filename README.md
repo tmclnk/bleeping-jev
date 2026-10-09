@@ -34,7 +34,7 @@ sent, and what they cost.
 ```sh
 mise run setup   # check uv + API key, resolve deps, pre-download the Whisper model
 mise run test    # smoke-test the Jev path with canned sentences — no mic needed
-mise run run     # live demo (add --debug to dump Jev requests/responses)
+mise run start     # live demo (add --debug to dump Jev requests/responses)
 ```
 
 `mise tasks` lists every task, `mise run <task> --help` its flags. Requirements: macOS, [mise](https://mise.jdx.dev/) (installs `uv` per `mise.toml`),
@@ -54,12 +54,12 @@ inline in each script (PEP 723), so `uv run bleep.py` works without a venv.
 
 Toggling live is a good demo beat: say the same sentence with `v` off and on.
 
-Flags for `bleep.py` (or `mise run run --whisper-model base --device 4`; extra flags after `--`):
+Flags for `bleep.py` (or `mise run start --whisper-model base --device 4`; extra flags after `--`):
 
 | Flag | Default | Purpose |
 | --- | --- | --- |
 | `--no-language` / `--no-vulgarity` / `--no-pii` / `--no-shade` | all on | start with a feature disabled |
-| `--whisper-model` | `small` | faster-whisper size; `base` is faster, `small` handles de/es better |
+| `--whisper-model` | `small` | whisper.cpp model size; `base` is faster, `small` handles de/es better |
 | `--device N` | system default | input device index; `--list-devices` shows them |
 | `--gate-db` | `-40` | energy gate in dBFS; raise toward `-30` in a noisy room |
 | `--silence-ms` | `700` | pause length that ends an utterance |
@@ -69,13 +69,13 @@ Flags for `bleep.py` (or `mise run run --whisper-model base --device 4`; extra f
 
 ```
 mic ──▶ energy gate ──▶ Whisper (local) ──▶ Jev (1 request) ──▶ render ──▶ stdout
-        30ms blocks     faster-whisper      ~36 questions       glyphs / ▒ / ▓ / <lang>
-        pause = cut     small, int8         in parallel
+        30ms blocks     whisper.cpp          ~36 questions       glyphs / ▒ / ▓ / <lang>
+        pause = cut     small, Metal       in parallel
 ```
 
 1. **Capture.** `sounddevice` streams 16 kHz mono audio in 30 ms blocks. A
    simple RMS gate marks speech; ~700 ms of quiet ends the utterance.
-2. **Transcribe.** `faster-whisper` runs the multilingual `small` model on CPU.
+2. **Transcribe.** whisper.cpp (via `pywhispercpp`) runs the multilingual `small` model, on the GPU via Metal on Apple Silicon.
    An `initial_prompt` containing mild profanity nudges Whisper away from its
    habit of self-censoring to `f***`.
 3. **Judge.** The utterance becomes one Jev `system_one` request. State is
@@ -124,7 +124,7 @@ mic ──▶ energy gate ──▶ Whisper (local) ──▶ Jev (1 request) �
 
 ## Demo-day checklist
 
-- Run `mise run setup` and then `mise run run` once from the terminal you'll present
+- Run `mise run setup` and then `mise run start` once from the terminal you'll present
   with. macOS prompts for microphone permission on the first live run.
 - Fullscreen the terminal and raise the font (`Cmd +`) until one sentence
   fills the projector.
@@ -143,5 +143,5 @@ mic ──▶ energy gate ──▶ Whisper (local) ──▶ Jev (1 request) �
 | Captures constantly in a loud room | raise `--gate-db` to `-30` |
 | `✗ TYPESAFE_API_KEY not set` | `direnv allow`, or `export TYPESAFE_API_KEY=...` |
 | Whisper outputs `f***` | the `initial_prompt` usually prevents this; try `--whisper-model small` if on `base` |
-| Long lag after each sentence | `mise run run-fast` (Whisper `base`) |
+| Long lag after each sentence | `mise run start-fast` (Whisper `base`) |
 | Jev error in output | check the key and network; the raw transcript still prints so the demo continues |

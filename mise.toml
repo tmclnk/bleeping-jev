@@ -16,14 +16,14 @@ run = '''
 echo "Resolving Python dependencies…"
 uv run bleep.py --list-devices >/dev/null
 echo "Downloading/caching Whisper '${usage_whisper_model}' model…"
-uv run --with faster-whisper python -c \
-  "from faster_whisper import WhisperModel; WhisperModel('${usage_whisper_model}', compute_type='int8')"
-echo "✓ setup complete — run 'mise run test', then 'mise run run'"
-echo "  (first 'mise run run' will prompt for microphone permission)"
+uv run --with pywhispercpp python -c \
+  "from pywhispercpp.model import Model; Model('${usage_whisper_model}')"
+echo "✓ setup complete — run 'mise run test', then 'mise run start'"
+echo "  (first 'mise run start' will prompt for microphone permission)"
 '''
 
 [tasks.devices]
-description = "List audio input devices (pick one with: mise run run --device N)"
+description = "List audio input devices (pick one with: mise run start --device N)"
 run = "uv run bleep.py --list-devices"
 
 [tasks.test]
@@ -39,7 +39,7 @@ uv run smoke_test.py \
   ${usage_debug:+--debug} ${usage_show_request:+--show-request} ${usage_show_response:+--show-response}
 '''
 
-[tasks.run]
+[tasks.start]
 description = "Run the live demo (keys: l/v/p/s toggle features, q quits)"
 depends = ["check"]
 usage = '''
@@ -57,13 +57,13 @@ uv run bleep.py --whisper-model "${usage_whisper_model}" \
   ${usage_extra}
 '''
 
-[tasks.run-fast]
+[tasks.start-fast]
 description = "Run with the faster, less accurate 'base' Whisper model"
-run = "mise run run --whisper-model base"
+run = "mise run start --whisper-model base"
 
 [tasks.clean]
 description = "Remove uv's cached environments for these scripts"
 run = '''
 uv cache clean >/dev/null 2>&1 || true
-echo "✓ uv cache cleaned (Whisper models in ~/.cache/huggingface are kept)"
+echo "✓ uv cache cleaned (Whisper models in ~/Library/Application Support/pywhispercpp are kept)"
 '''

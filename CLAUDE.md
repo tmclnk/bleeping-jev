@@ -17,7 +17,7 @@ and cost, so keep the status line and the one-request-per-utterance shape.
 mise tasks                # list tasks (defined in mise.toml, which also pins uv)
 mise run setup            # check TYPESAFE_API_KEY, resolve deps, cache Whisper model
 mise run test             # smoke test: judge_segment on 10 canned sentences (live API, no mic)
-mise run run              # live demo; --whisper-model base, --device N, extra bleep.py flags after --
+mise run start              # live demo; --whisper-model base, --device N, extra bleep.py flags after --
 mise run devices          # list audio input devices
 # --debug / --show-request / --show-response work on both `run` and `test`
 uv run bleep.py --help
@@ -29,9 +29,8 @@ requires `TYPESAFE_API_KEY` (exported by `.envrc` via direnv).
 
 Dependencies are PEP 723 inline metadata in each script, not a pyproject. A
 bare `uv run python -c ...` has none of them; use `uv run --with <pkg> python`
-or run the script itself. Ad-hoc `--with` envs may resolve a newer `av` than
-`faster-whisper` supports, which breaks file decoding only — the app feeds
-numpy arrays, so pass audio as arrays in any test harness.
+or run the script itself. The app feeds Whisper numpy arrays, so pass audio
+as arrays in any test harness.
 
 ## Working with Jev / TypeSafe
 
@@ -60,8 +59,8 @@ Four stages, each a top-level section in the file:
 1. `UtteranceCapture` — `sounddevice` stream, 16 kHz mono, 30 ms blocks.
    An RMS energy gate (`--gate-db`) starts an utterance; `--silence-ms` of
    quiet or 12 s max ends it. Yields float32 numpy arrays.
-2. Whisper — `faster-whisper` `small`/int8 on CPU, `beam_size=1`,
-   `vad_filter=True`. The `initial_prompt` deliberately contains profanity so
+2. Whisper — whisper.cpp via `pywhispercpp` (`small`, Metal on Apple
+   Silicon; ~3x faster than the old `faster-whisper` CPU path). The `initial_prompt` deliberately contains profanity so
    Whisper doesn't self-censor to `f***`; keep it if you touch transcription.
 3. `judge_segment` — builds the request: `language` Choice (english /
    spanish / german / other) plus `vulgar_{i}` and `pii_{i}` Nouls for every

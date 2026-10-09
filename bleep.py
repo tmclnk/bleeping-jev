@@ -3,7 +3,7 @@
 # requires-python = ">=3.10"
 # dependencies = [
 #     "typesafe-sdk",
-#     "faster-whisper>=1.0",
+#     "pywhispercpp>=1.3",
 #     "sounddevice>=0.4",
 #     "numpy",
 # ]
@@ -303,7 +303,7 @@ def main() -> int:
                     help="don't elide utterances that trash-talk a person")
     ap.add_argument("--jev-model", default="jev-latest")
     ap.add_argument("--whisper-model", default="small",
-                    help="faster-whisper model (small handles de/es well)")
+                    help="whisper.cpp model (small handles de/es well)")
     ap.add_argument("--device", type=int, default=None,
                     help="input device index (see --list-devices)")
     ap.add_argument("--list-devices", action="store_true")
@@ -335,8 +335,12 @@ def main() -> int:
     client = TypeSafeClient()
 
     print(f"{DIM}loading whisper '{args.whisper_model}'…{RESET}")
-    from faster_whisper import WhisperModel
-    whisper = WhisperModel(args.whisper_model, compute_type="int8")
+    from pywhispercpp.model import Model
+    whisper = Model(
+        args.whisper_model, n_threads=4, print_realtime=False,
+        print_progress=False,
+        # bias whisper away from self-censoring transcripts
+        initial_prompt="Okay, so, damn, I swear, shit happens, fuck it.")
 
     stop = threading.Event()
     threading.Thread(target=key_listener, args=(features, stop),
@@ -352,12 +356,7 @@ def main() -> int:
         if stop.is_set():
             break
         t0 = time.perf_counter()
-        segments, _info = whisper.transcribe(
-            audio, beam_size=1, vad_filter=True,
-            # bias whisper away from self-censoring transcripts
-            initial_prompt="Okay, so, damn, I swear, shit happens, fuck it.",
-        )
-        text = " ".join(s.text.strip() for s in segments).strip()
+        text = " ".join(s.text.strip() for s in whisper.transcribe(audio)).strip()
         whisper_s = time.perf_counter() - t0
         if not text:
             continue
