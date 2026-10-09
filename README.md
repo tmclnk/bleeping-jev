@@ -25,8 +25,8 @@ roughly 150 milliseconds for about five thousandths of a cent.
   jev 118ms · 1495 tok · $0.000063 · whisper 2.0s
 ```
 
-🙊 replaces an offensive word or phrase (one per run, so *son of a bitch* is a
-single 🙊); yellow `▒▒▒▒` is redacted PII; a whole line
+🙊 replaces each word of an offensive word or phrase (*son of a bitch* is
+`🙊 🙊 🙊 🙊`); yellow `▒▒▒▒` is redacted PII; a whole line
 of magenta `▓▓▓▓` means you were talking shit about someone. The status
 line under each sentence is the pitch: Jev's wall-clock latency, the tokens
 sent, and what they cost.
@@ -109,7 +109,7 @@ mic ──▶ energy gate ──▶ Whisper (local) ──▶ Jev (1 request) �
    pattern). A 15-word sentence is ~32 questions.
 4. **Render.** Code — not the model — does the redaction: any word whose Noul
    probability is ≥ 0.5 is replaced — PII with block characters of the same
-   length, each run of offensive words with a single 🙊 — and the line is wrapped in the language tag. If `shade` is ≥ 0.5 the
+   length, each offensive word with one 🙊 — and the line is wrapped in the language tag. If `shade` is ≥ 0.5 the
    entire utterance is elided word-by-word (lengths preserved, naturally). Jev never generates text; it
    returns typed answers that the program consumes directly.
 

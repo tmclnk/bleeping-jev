@@ -15,7 +15,7 @@ Jev one batched System One request per utterance:
 
   * language   — Choice: which language is the segment in?
   * vulgarity  — one Noul per word: is this word part of an offensive
-                 word or phrase? Each flagged run becomes one 🙊.
+                 word or phrase? Each flagged word becomes one 🙊.
   * pii        — one Noul per word: does this word reveal PII here?
   * shade      — one Noul for the whole utterance: is the speaker talking
                  shit about a coworker? If so the entire line is elided.
@@ -59,6 +59,7 @@ YELLOW = "\033[33m"
 MAGENTA = "\033[35m"
 CYAN = "\033[36m"
 RESET = "\033[0m"
+FG_RESET = "\033[39m"  # color only, so the line's BOLD survives a span
 
 VULGAR_EMOJI = "🙊"
 PII_BLOCK = "▒"
@@ -267,19 +268,23 @@ def redact(word: str, block: str) -> str:
     return block * len(word)
 
 
+def wcwidth(s: str) -> int:
+    import unicodedata
+    return sum(2 if unicodedata.east_asian_width(c) in "WF" else 1 for c in s)
+
+
 def render(text: str, language: str | None, vulgar: list[bool],
            pii: list[bool], shade: bool = False) -> str:
     out: list[str] = []
     for i, m in enumerate(WORD_RE.finditer(text)):
         w = m.group()
-        if shade:  # whole utterance elided: nothing survives, lengths do
-            out.append(MAGENTA + redact(w, SHADE_BLOCK) + RESET)
-        elif vulgar[i]:
-            # one 🙊 per offensive run, so a phrase reads as a single bleep
-            if not (i and vulgar[i - 1]):
-                out.append(VULGAR_EMOJI)
+        if vulgar[i]:
+            # wins over shade so slurs still read as 🙊 in an elided line
+            out.append(VULGAR_EMOJI)
+        elif shade:  # utterance elided: nothing else survives, lengths do
+            out.append(MAGENTA + redact(w, SHADE_BLOCK) + FG_RESET)
         elif pii[i]:
-            out.append(YELLOW + redact(w, PII_BLOCK) + RESET)
+            out.append(YELLOW + redact(w, PII_BLOCK) + FG_RESET)
         else:
             out.append(w)
     line = " ".join(out)
@@ -302,11 +307,8 @@ def screen_rows(line: str) -> int:
     """Terminal rows a printed line occupies, so a live line can be redrawn
     in place even after it wraps."""
     import shutil
-    import unicodedata
     cols = shutil.get_terminal_size().columns
-    width = sum(2 if unicodedata.east_asian_width(c) in "WF" else 1
-                for c in ANSI_RE.sub("", line))
-    return max(1, -(-width // cols))
+    return max(1, -(-wcwidth(ANSI_RE.sub("", line)) // cols))
 
 
 def clear_rows(rows: int) -> None:
