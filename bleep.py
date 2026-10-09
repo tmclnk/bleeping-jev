@@ -293,9 +293,8 @@ def render(text: str, language: str | None, vulgar: list[bool],
     return BOLD + line + RESET
 
 
-KEY = (f"key: <english>/<spanish>/<german> detected language · "
-       f"{VULGAR_EMOJI} offensive word · {PII_BLOCK} personal info · "
-       f"{SHADE_BLOCK} utterance disparaging a person")
+KEY = (f"key: {VULGAR_EMOJI} offensive word · {PII_BLOCK} PII · "
+       f"{SHADE_BLOCK} shade")
 
 
 def status(latency: float, tokens: int, whisper_s: float) -> str:
